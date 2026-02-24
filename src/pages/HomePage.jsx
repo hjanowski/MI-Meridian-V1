@@ -6,17 +6,17 @@ export default function HomePage() {
 
   const steps = [
     {
-      icon: Database, title: 'Data Pipelines', desc: 'Ingest and validate marketing data for Meridian MMM analysis',
+      icon: Database, title: 'Data Ingestion', desc: 'Ingest and validate marketing data for Meridian MMM analysis',
       action: () => dispatch({ type: 'SET_STEP', payload: 'pipeline' }),
       status: state.pipelineData ? 'complete' : 'ready',
     },
     {
-      icon: Settings, title: 'Configuration', desc: 'Configure model parameters, priors, and connect 1st party data',
+      icon: Settings, title: 'MI Configuration', desc: 'Configure model parameters, priors, and connect 1st party data',
       action: () => dispatch({ type: 'SET_STEP', payload: 'config' }),
       status: state.pipelineData ? (state.validationResults?.canProceed ? 'ready' : 'blocked') : 'locked',
     },
     {
-      icon: Zap, title: 'Model Training', desc: 'Run Bayesian inference with MCMC sampling via Meridian',
+      icon: Zap, title: 'Model Data Feed', desc: 'Run Bayesian inference with MCMC sampling via Meridian',
       action: () => dispatch({ type: 'SET_STEP', payload: 'training' }),
       status: state.validationResults?.canProceed ? 'ready' : 'locked',
     },

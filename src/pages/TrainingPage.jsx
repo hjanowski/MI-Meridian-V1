@@ -81,7 +81,7 @@ export default function TrainingPage() {
     <div className="animate-slide-in">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h1 className="slds-text-heading_large">Model Training</h1>
+          <h1 className="slds-text-heading_large">Model Data Feed</h1>
           <p style={{ fontSize: 13, color: '#706e6b', marginTop: 4 }}>
             Run Bayesian MCMC inference via Google Meridian to estimate media effects
           </p>

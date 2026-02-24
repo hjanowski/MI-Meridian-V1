@@ -3,10 +3,10 @@ import { useApp } from '../context/AppContext';
 import { BarChart3, Database, Settings, LayoutDashboard, Home, ChevronRight, Menu, X, Zap } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { key: 'home', label: 'Home', icon: Home },
-  { key: 'pipeline', label: 'Data Pipelines', icon: Database },
-  { key: 'config', label: 'Configuration', icon: Settings },
-  { key: 'training', label: 'Model Training', icon: Zap },
+  { key: 'home', label: 'Admin Console', icon: Home },
+  { key: 'pipeline', label: 'Data Ingestion', icon: Database },
+  { key: 'config', label: 'MI Configuration', icon: Settings },
+  { key: 'training', label: 'Model Data Feed', icon: Zap },
   { key: 'dashboards', label: 'Dashboards', icon: LayoutDashboard },
 ];
 
@@ -97,7 +97,7 @@ export default function Layout({ children }) {
           <span style={{ fontSize: 12, color: '#706e6b' }}>Marketing Intelligence</span>
           <ChevronRight size={12} color="#706e6b" />
           <span style={{ fontSize: 12, fontWeight: 600, color: '#181818' }}>
-            {NAV_ITEMS.find((n) => n.key === state.currentStep)?.label || 'Home'}
+            {NAV_ITEMS.find((n) => n.key === state.currentStep)?.label || 'Admin Console'}
           </span>
           <div style={{ flex: 1 }} />
           {state.pipelineName && (
