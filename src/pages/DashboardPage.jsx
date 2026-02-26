@@ -8,7 +8,7 @@ import {
 } from 'recharts';
 import { Download, FileSpreadsheet, TrendingUp, DollarSign, Target, BarChart3, Layers, Activity, Users } from 'lucide-react';
 
-const COLORS = ['#0176d3', '#2e844a', '#fe9339', '#ba0517', '#9050e9', '#04844b', '#3296ed', '#fcc003'];
+const COLORS = ['#0176d3', '#2e844a', '#fe9339', '#ba0517', '#9050e9', '#04844b', '#3296ed', '#fcc003', '#7b8b8e'];
 
 const TABS = [
   { key: 'overview', label: 'Overview', icon: BarChart3 },
@@ -78,7 +78,7 @@ export default function DashboardPage() {
 
   // Prepare data for spend vs contribution chart
   const spendVsContrib = data.channelROI.map((c, i) => ({
-    channel: c.channel.replace(/\s*\(.*\)/, '').substring(0, 12),
+    channel: c.channel.replace(/\s*\(.*\)/, '').substring(0, 14),
     spendShare: parseFloat((c.spendShare * 100).toFixed(1)),
     contribShare: parseFloat((c.contributionShare * 100).toFixed(1)),
     roi: parseFloat(c.roi.toFixed(2)),
@@ -165,7 +165,7 @@ export default function DashboardPage() {
             <h3 className="slds-text-heading_small" style={{ marginBottom: 12 }}>ROI by Channel (with 90% Credible Intervals)</h3>
             <ResponsiveContainer width="100%" height={350}>
               <ComposedChart data={data.channelROI.map((c) => ({
-                channel: c.channel.replace(/\s*\(.*\)/, '').substring(0, 12),
+                channel: c.channel.replace(/\s*\(.*\)/, '').substring(0, 14),
                 roi: parseFloat(c.roi.toFixed(2)),
                 roi_lower: parseFloat(c.roi_lower.toFixed(2)),
                 roi_upper: parseFloat(c.roi_upper.toFixed(2)),
@@ -404,7 +404,7 @@ export default function DashboardPage() {
                 </div>
                 <ResponsiveContainer width="100%" height={350}>
                   <BarChart data={optResults.channels.map((c) => ({
-                    channel: c.channel.replace(/\s*\(.*\)/, '').substring(0, 12),
+                    channel: c.channel.replace(/\s*\(.*\)/, '').substring(0, 14),
                     current: c.currentSpend,
                     optimized: c.optimizedSpend,
                   }))} barGap={2}>

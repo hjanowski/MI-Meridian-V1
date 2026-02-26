@@ -1,5 +1,5 @@
 import { useApp } from '../context/AppContext';
-import { Settings, Database, Info, ArrowRight, Clock, Sliders, BarChart3, CloudLightning, CheckCircle, Edit3 } from 'lucide-react';
+import { Settings, Database, Info, ArrowRight, ArrowLeft, Clock, Sliders, BarChart3, CloudLightning, CheckCircle, Edit3, AlertTriangle, Mail, MessageSquare, Smartphone } from 'lucide-react';
 
 function StatusDot({ active }) {
   return (
@@ -46,6 +46,16 @@ function Section({ icon, color, title, badge, children }) {
   );
 }
 
+function getLookbackDateRange(years) {
+  const today = new Date();
+  const start = new Date(today);
+  start.setFullYear(start.getFullYear() - years);
+  return {
+    from: start.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+    to: today.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+  };
+}
+
 export default function ConfigPage() {
   const { state, dispatch } = useApp();
   const { config } = state;
@@ -53,9 +63,24 @@ export default function ConfigPage() {
   const updateConfig = (updates) => dispatch({ type: 'UPDATE_CONFIG', payload: updates });
   const updateFactors = (updates) => dispatch({ type: 'UPDATE_EXTERNAL_FACTORS', payload: updates });
   const updateBudget = (updates) => dispatch({ type: 'UPDATE_BUDGET_CONFIG', payload: updates });
+  const updateFirstPartyChannels = (updates) => dispatch({ type: 'UPDATE_FIRST_PARTY_CHANNELS', payload: updates });
 
   const enabledFactors = Object.values(config.externalFactors).filter(Boolean).length;
   const totalFactors = Object.keys(config.externalFactors).length;
+
+  // Check if model lookback exceeds ingested data
+  const ingestedYears = state.lookbackYears || (state.pipelineData ? Math.round(state.pipelineData.numWeeks / 52) : 0);
+  const modelLookback = config.modelLookbackYears || 3;
+  const insufficientData = modelLookback > ingestedYears;
+  const modelDateRange = getLookbackDateRange(modelLookback);
+
+  // 1st party channel helpers
+  const fpChannels = config.firstPartyChannels || { email: false, whatsapp: false, sms: false };
+  const allFirstPartySelected = fpChannels.email && fpChannels.whatsapp && fpChannels.sms;
+  const anyFirstPartySelected = fpChannels.email || fpChannels.whatsapp || fpChannels.sms;
+  const toggleAllFirstParty = (checked) => {
+    updateFirstPartyChannels({ email: checked, whatsapp: checked, sms: checked });
+  };
 
   return (
     <div className="animate-slide-in">
@@ -76,7 +101,7 @@ export default function ConfigPage() {
           </button>
           <button
             className="slds-button slds-button_brand"
-            disabled={!state.validationResults?.canProceed}
+            disabled={!state.validationResults?.canProceed || insufficientData}
             onClick={() => dispatch({ type: 'SET_STEP', payload: 'training' })}
           >
             Proceed to Model Data Feed <ArrowRight size={14} />
@@ -93,11 +118,12 @@ export default function ConfigPage() {
         {[
           { label: 'Name', value: state.pipelineName || 'MI Configuration' },
           { label: '1st Party Data', value: config.connectFirstParty ? 'Connected' : 'Disconnected' },
+          { label: 'Model Period', value: modelLookback + ' Year' + (modelLookback > 1 ? 's' : '') },
           { label: 'KPI Type', value: config.kpiType === 'revenue' ? 'Revenue' : 'Conversions' },
           { label: 'Adstock', value: config.adstockDecay === 'geometric' ? 'Geometric' : 'Binomial' },
           { label: 'External Factors', value: `${enabledFactors}/${totalFactors} enabled` },
           { label: 'Budget', value: '$' + config.budgetOptimization.totalBudget.toLocaleString() },
-          { label: 'Status', value: state.validationResults?.canProceed ? 'Ready' : 'Pending' },
+          { label: 'Status', value: insufficientData ? 'Insufficient Data' : state.validationResults?.canProceed ? 'Ready' : 'Pending' },
         ].map((item, i, arr) => (
           <div key={i} style={{
             display: 'flex', flexDirection: 'column', padding: '0 20px',
@@ -109,6 +135,7 @@ export default function ConfigPage() {
             <span style={{
               fontSize: 13, fontWeight: 600, color: '#181818', marginTop: 2,
               ...(item.label === 'Status' && item.value === 'Ready' ? { color: '#2e844a' } : {}),
+              ...(item.label === 'Status' && item.value === 'Insufficient Data' ? { color: '#ea001e' } : {}),
               ...(item.label === '1st Party Data' && item.value === 'Connected' ? { color: '#2e844a' } : {}),
             }}>
               {item.value}
@@ -117,59 +144,228 @@ export default function ConfigPage() {
         ))}
       </div>
 
-      {/* Salesforce 1st Party Data */}
-      <Section icon={Database} color="#0176d3" title="Salesforce 1st Party Data"
+      {/* Model Look-back Period Selection */}
+      <Section icon={Clock} color="#0176d3" title="Model Look-back Period"
+        badge={
+          <span style={{
+            fontSize: 12, fontWeight: 600,
+            color: insufficientData ? '#ea001e' : '#2e844a',
+            background: insufficientData ? '#fef0ef' : '#e6f7ec',
+            padding: '4px 12px', borderRadius: 12,
+          }}>
+            {insufficientData ? 'Insufficient Data' : modelLookback + ' Year' + (modelLookback > 1 ? 's' : '')}
+          </span>
+        }
+      >
+        <p style={{ fontSize: 13, color: '#706e6b', marginBottom: 16 }}>
+          Select the look-back period for model analysis. This determines how much historical data the model uses.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
+          {[1, 2, 3, 4].map((years) => {
+            const range = getLookbackDateRange(years);
+            const disabled = years > ingestedYears;
+            return (
+              <div
+                key={years}
+                onClick={() => !disabled && updateConfig({ modelLookbackYears: years })}
+                style={{
+                  border: `2px solid ${modelLookback === years ? '#0176d3' : disabled ? '#e5e5e5' : '#c9c9c9'}`,
+                  borderRadius: 8, padding: 16, cursor: disabled ? 'not-allowed' : 'pointer',
+                  background: modelLookback === years ? '#e5f5fe' : disabled ? '#f8f8f8' : 'white',
+                  opacity: disabled ? 0.6 : 1,
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 22, fontWeight: 700, color: modelLookback === years ? '#0176d3' : disabled ? '#706e6b' : '#181818' }}>
+                  {years} Year{years > 1 ? 's' : ''}
+                </div>
+                <div style={{ fontSize: 11, color: '#706e6b', marginTop: 4 }}>{years * 52} weeks</div>
+                <div style={{ fontSize: 11, color: '#0176d3', marginTop: 4, fontWeight: 500 }}>
+                  {range.from} &ndash; {range.to}
+                </div>
+                {disabled && (
+                  <div style={{ fontSize: 10, color: '#ea001e', marginTop: 6, fontWeight: 600 }}>
+                    Not enough data ingested
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {insufficientData && (
+          <div className="slds-notify slds-notify_error" style={{ marginTop: 8 }}>
+            <AlertTriangle size={18} />
+            <div>
+              <strong>Insufficient data for {modelLookback}-year look-back</strong>
+              <div style={{ fontSize: 12, marginTop: 4 }}>
+                You have ingested {ingestedYears} year{ingestedYears !== 1 ? 's' : ''} of data, but selected a {modelLookback}-year model period.
+                Please go back to Data Ingestion and ingest at least {modelLookback} year{modelLookback !== 1 ? 's' : ''} of data, or select a shorter look-back period.
+              </div>
+              <button
+                className="slds-button slds-button_neutral"
+                style={{ marginTop: 8 }}
+                onClick={() => dispatch({ type: 'SET_STEP', payload: 'pipeline' })}
+              >
+                <ArrowLeft size={14} /> Go to Data Ingestion
+              </button>
+            </div>
+          </div>
+        )}
+      </Section>
+
+      {/* 1st Party Data */}
+      <Section icon={Database} color="#0176d3" title="1st Party Data"
         badge={<StatusDot active={config.connectFirstParty} />}
       >
         <div className="slds-notify slds-notify_info" style={{ marginBottom: 16 }}>
           <Info size={16} />
           <div style={{ fontSize: 12 }}>
-            Connect to Salesforce Data Cloud to enrich your MMM analysis with CRM segments, engagement scores, and conversion paths. No additional ingestion needed — data is already available.
+            Connect to 1st Party Data to enrich your MMM analysis with direct channel engagement data. This data captures the effort and influence of owned channels. All 1st party data is consolidated as &apos;Organic&apos; in the model.
           </div>
         </div>
         <label className="slds-checkbox-toggle">
           <input type="checkbox" checked={config.connectFirstParty} onChange={(e) => updateConfig({ connectFirstParty: e.target.checked })} />
           <div className="slds-checkbox-toggle__track" />
-          <span className="slds-checkbox-toggle__label">Connect to Data Cloud</span>
+          <span className="slds-checkbox-toggle__label">Connect to 1st Party Data</span>
         </label>
-        {config.connectFirstParty && state.pipelineData?.firstPartyData && (
+        {config.connectFirstParty && (
           <div style={{ marginTop: 16 }}>
-            <table className="slds-table">
-              <thead>
-                <tr><th>CRM Segment</th><th>Contacts</th><th>Avg LTV</th></tr>
-              </thead>
-              <tbody>
-                {state.pipelineData.firstPartyData.crmSegments.map((s, i) => (
-                  <tr key={i}>
-                    <td style={{ fontWeight: 600 }}>{s.name}</td>
-                    <td>{s.size.toLocaleString()}</td>
-                    <td>${s.avgLTV.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
-              <div style={{ background: '#f8f8f8', borderRadius: 6, padding: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#706e6b', textTransform: 'uppercase' }}>Engagement Score</div>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#0176d3', marginTop: 4 }}>{state.pipelineData.firstPartyData.engagementScores.avgScore}</div>
-                <div style={{ fontSize: 11, color: '#706e6b' }}>Avg. across all contacts</div>
-              </div>
-              <div style={{ background: '#f8f8f8', borderRadius: 6, padding: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#706e6b', textTransform: 'uppercase', marginBottom: 4 }}>Top Conversion Paths</div>
-                {state.pipelineData.firstPartyData.conversionPaths.topPaths.slice(0, 3).map((p, i) => (
-                  <div key={i} style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                    <span>{p.path}</span>
-                    <span style={{ fontWeight: 600 }}>{p.pct}%</span>
-                  </div>
-                ))}
-              </div>
+            {/* Channel selection */}
+            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Select 1st Party Channels</h3>
+            <div style={{ marginBottom: 16 }}>
+              <label className="slds-checkbox-toggle" style={{ marginBottom: 12 }}>
+                <input type="checkbox" checked={allFirstPartySelected} onChange={(e) => toggleAllFirstParty(e.target.checked)} />
+                <div className="slds-checkbox-toggle__track" />
+                <span className="slds-checkbox-toggle__label">Select All Channels</span>
+              </label>
             </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
+              {[
+                { key: 'email', label: 'Email', icon: Mail, color: '#0176d3' },
+                { key: 'whatsapp', label: 'WhatsApp', icon: MessageSquare, color: '#25D366' },
+                { key: 'sms', label: 'SMS', icon: Smartphone, color: '#fe9339' },
+              ].map((ch) => (
+                <div
+                  key={ch.key}
+                  onClick={() => updateFirstPartyChannels({ [ch.key]: !fpChannels[ch.key] })}
+                  style={{
+                    border: `2px solid ${fpChannels[ch.key] ? ch.color : '#e5e5e5'}`,
+                    borderRadius: 8, padding: 16, cursor: 'pointer',
+                    background: fpChannels[ch.key] ? ch.color + '10' : 'white',
+                    textAlign: 'center',
+                  }}
+                >
+                  <ch.icon size={24} color={fpChannels[ch.key] ? ch.color : '#706e6b'} style={{ marginBottom: 8 }} />
+                  <div style={{ fontSize: 14, fontWeight: 700, color: fpChannels[ch.key] ? '#181818' : '#706e6b' }}>{ch.label}</div>
+                  <div style={{ fontSize: 11, color: '#706e6b', marginTop: 4 }}>
+                    {fpChannels[ch.key] ? 'Selected' : 'Click to select'}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Channel stats based on look-back window */}
+            {anyFirstPartySelected && state.pipelineData?.firstPartyData?.firstPartyChannels && (
+              <div>
+                <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
+                  Channel Activity ({modelLookback} Year{modelLookback > 1 ? 's' : ''} Look-back)
+                </h3>
+                <table className="slds-table">
+                  <thead>
+                    <tr><th>Channel</th><th>Total Sent</th><th>Total Opened</th><th>Open Rate</th></tr>
+                  </thead>
+                  <tbody>
+                    {fpChannels.email && state.pipelineData.firstPartyData.firstPartyChannels.email && (() => {
+                      const d = state.pipelineData.firstPartyData.firstPartyChannels.email;
+                      const scale = (modelLookback * 52) / state.pipelineData.numWeeks;
+                      return (
+                        <tr>
+                          <td style={{ fontWeight: 600 }}><Mail size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Email</td>
+                          <td>{Math.round(d.totalSent * scale).toLocaleString()}</td>
+                          <td>{Math.round(d.totalOpened * scale).toLocaleString()}</td>
+                          <td>{(d.openRate * 100).toFixed(1)}%</td>
+                        </tr>
+                      );
+                    })()}
+                    {fpChannels.whatsapp && state.pipelineData.firstPartyData.firstPartyChannels.whatsapp && (() => {
+                      const d = state.pipelineData.firstPartyData.firstPartyChannels.whatsapp;
+                      const scale = (modelLookback * 52) / state.pipelineData.numWeeks;
+                      return (
+                        <tr>
+                          <td style={{ fontWeight: 600 }}><MessageSquare size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />WhatsApp</td>
+                          <td>{Math.round(d.totalSent * scale).toLocaleString()}</td>
+                          <td>{Math.round(d.totalOpened * scale).toLocaleString()}</td>
+                          <td>{(d.openRate * 100).toFixed(1)}%</td>
+                        </tr>
+                      );
+                    })()}
+                    {fpChannels.sms && state.pipelineData.firstPartyData.firstPartyChannels.sms && (() => {
+                      const d = state.pipelineData.firstPartyData.firstPartyChannels.sms;
+                      const scale = (modelLookback * 52) / state.pipelineData.numWeeks;
+                      return (
+                        <tr>
+                          <td style={{ fontWeight: 600 }}><Smartphone size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />SMS</td>
+                          <td>{Math.round(d.totalSent * scale).toLocaleString()}</td>
+                          <td>{Math.round(d.totalOpened * scale).toLocaleString()}</td>
+                          <td>{(d.openRate * 100).toFixed(1)}%</td>
+                        </tr>
+                      );
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* CRM segments */}
+            {state.pipelineData?.firstPartyData && (
+              <div style={{ marginTop: 16 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>CRM Segments</h3>
+                <table className="slds-table">
+                  <thead>
+                    <tr><th>CRM Segment</th><th>Contacts</th><th>Avg LTV</th></tr>
+                  </thead>
+                  <tbody>
+                    {state.pipelineData.firstPartyData.crmSegments.map((s, i) => (
+                      <tr key={i}>
+                        <td style={{ fontWeight: 600 }}>{s.name}</td>
+                        <td>{s.size.toLocaleString()}</td>
+                        <td>${s.avgLTV.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </Section>
 
       {/* Meridian Model Specification */}
       <Section icon={Settings} color="#0176d3" title="Meridian Model Specification">
+        {/* KPI Type configuration at the top */}
+        <div style={{
+          background: '#e5f5fe', borderRadius: 6, padding: 20, marginBottom: 20,
+          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
+        }}>
+          <div className="slds-form-element" style={{ marginBottom: 0 }}>
+            <label className="slds-form-element__label" style={{ fontWeight: 700, fontSize: 14 }}>KPI Type</label>
+            <select className="slds-select" value={config.kpiType} onChange={(e) => updateConfig({ kpiType: e.target.value })}>
+              <option value="revenue">Revenue</option>
+              <option value="non_revenue">Non-Revenue (Conversions)</option>
+            </select>
+            <div className="slds-form-element__help">Determines how ROI is calculated. Revenue KPIs allow direct ROI computation.</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{ background: 'white', borderRadius: 6, padding: 12, width: '100%' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#706e6b', textTransform: 'uppercase' }}>Current KPI Type</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#0176d3', marginTop: 4 }}>
+                {config.kpiType === 'revenue' ? 'Revenue' : 'Non-Revenue (Conversions)'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Parameter summary table */}
         <table className="slds-table" style={{ marginBottom: 20 }}>
           <thead>
             <tr><th>Parameter</th><th>Current Value</th><th></th></tr>
@@ -202,14 +398,6 @@ export default function ConfigPage() {
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
         }}>
           <div className="slds-form-element" style={{ marginBottom: 0 }}>
-            <label className="slds-form-element__label">KPI Type</label>
-            <select className="slds-select" value={config.kpiType} onChange={(e) => updateConfig({ kpiType: e.target.value })}>
-              <option value="revenue">Revenue</option>
-              <option value="non_revenue">Non-Revenue (Conversions)</option>
-            </select>
-            <div className="slds-form-element__help">Determines how ROI is calculated. Revenue KPIs allow direct ROI computation.</div>
-          </div>
-          <div className="slds-form-element" style={{ marginBottom: 0 }}>
             <label className="slds-form-element__label">Adstock Decay Function</label>
             <select className="slds-select" value={config.adstockDecay} onChange={(e) => updateConfig({ adstockDecay: e.target.value })}>
               <option value="geometric">Geometric (exponential decay)</option>
@@ -228,35 +416,6 @@ export default function ConfigPage() {
               <div className="slds-checkbox-toggle__track" />
               <span className="slds-checkbox-toggle__label">Apply Hill saturation before adstock</span>
             </label>
-          </div>
-        </div>
-      </Section>
-
-      {/* Seasonality & Time Controls */}
-      <Section icon={Clock} color="#2e844a" title="Seasonality & Time Controls"
-        badge={<StatusDot active={config.enableAKS} />}
-      >
-        <div style={{
-          background: '#f8f8f8', borderRadius: 6, padding: 20,
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
-        }}>
-          <div className="slds-form-element" style={{ marginBottom: 0 }}>
-            <label className="slds-form-element__label">Knots (time-varying intercept)</label>
-            <select className="slds-select" value={config.knots} onChange={(e) => updateConfig({ knots: e.target.value })}>
-              <option value="auto">Automatic (1 per time period)</option>
-              <option value="aks">Automatic Knot Selection (AKS)</option>
-              <option value="10pct">10% of time periods</option>
-              <option value="1">Single knot (constant intercept)</option>
-            </select>
-            <div className="slds-form-element__help">Controls how seasonality and trend are captured. &quot;Auto&quot; gives maximum flexibility.</div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <label className="slds-checkbox-toggle">
-              <input type="checkbox" checked={config.enableAKS} onChange={(e) => updateConfig({ enableAKS: e.target.checked })} />
-              <div className="slds-checkbox-toggle__track" />
-              <span className="slds-checkbox-toggle__label">Enable Automatic Knot Selection (AKS)</span>
-            </label>
-            <div className="slds-form-element__help" style={{ marginTop: 4 }}>Uses backward elimination + AIC to find optimal knot placement.</div>
           </div>
         </div>
       </Section>
@@ -295,8 +454,8 @@ export default function ConfigPage() {
         </div>
       </Section>
 
-      {/* External Factors & Controls */}
-      <Section icon={CloudLightning} color="#fe9339" title="External Factors & Controls"
+      {/* External Factors, Seasonality & Time Controls (combined) */}
+      <Section icon={CloudLightning} color="#fe9339" title="External Factors, Seasonality & Controls"
         badge={
           <span style={{
             fontSize: 12, fontWeight: 600, color: enabledFactors > 0 ? '#2e844a' : '#706e6b',
@@ -307,13 +466,41 @@ export default function ConfigPage() {
           </span>
         }
       >
+        {/* Seasonality & Time Controls */}
+        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Seasonality & Time Controls</h3>
+        <div style={{
+          background: '#f8f8f8', borderRadius: 6, padding: 20, marginBottom: 20,
+          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
+        }}>
+          <div className="slds-form-element" style={{ marginBottom: 0 }}>
+            <label className="slds-form-element__label">Knots (time-varying intercept)</label>
+            <select className="slds-select" value={config.knots} onChange={(e) => updateConfig({ knots: e.target.value })}>
+              <option value="auto">Automatic (1 per time period)</option>
+              <option value="aks">Automatic Knot Selection (AKS)</option>
+              <option value="10pct">10% of time periods</option>
+              <option value="1">Single knot (constant intercept)</option>
+            </select>
+            <div className="slds-form-element__help">Controls how seasonality and trend are captured. &quot;Auto&quot; gives maximum flexibility.</div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <label className="slds-checkbox-toggle">
+              <input type="checkbox" checked={config.enableAKS} onChange={(e) => updateConfig({ enableAKS: e.target.checked })} />
+              <div className="slds-checkbox-toggle__track" />
+              <span className="slds-checkbox-toggle__label">Enable Automatic Knot Selection (AKS)</span>
+            </label>
+            <div className="slds-form-element__help" style={{ marginTop: 4 }}>Uses backward elimination + AIC to find optimal knot placement.</div>
+          </div>
+        </div>
+
+        {/* External Factors */}
+        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>External Factors & Controls</h3>
         <table className="slds-table" style={{ marginBottom: 0 }}>
           <thead>
             <tr><th>Factor</th><th>Description</th><th style={{ width: 80, textAlign: 'center' }}>Status</th></tr>
           </thead>
           <tbody>
             {[
-              { key: 'seasonality', label: 'Seasonality', desc: 'Auto-captured by time-varying intercept (knots)' },
+              { key: 'seasonality', label: 'Seasonality', desc: 'Auto-captured by time-varying intercept (knots configuration above)' },
               { key: 'holidays', label: 'Holiday Effects', desc: 'Black Friday, Christmas, etc. as dummy variables' },
               { key: 'gqv', label: 'Google Query Volume (GQV)', desc: 'Organic search demand via MMM Data Platform' },
               { key: 'competitorActivity', label: 'Competitor Activity', desc: 'Competitor spend/promotions as control variables' },

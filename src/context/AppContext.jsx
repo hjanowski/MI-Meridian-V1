@@ -8,8 +8,11 @@ const initialState = {
   complianceLevel: null,
   pipelineName: '',
   validationResults: null,
+  lookbackYears: null, // The look-back window selected during data ingestion
   config: {
     connectFirstParty: false,
+    firstPartyChannels: { email: false, whatsapp: false, sms: false },
+    modelLookbackYears: 3, // The look-back period for model run (1-4)
     kpiType: 'revenue',
     adstockDecay: 'geometric',
     maxLag: 8,
@@ -52,6 +55,16 @@ function appReducer(state, action) {
       return { ...state, pipelineName: action.payload };
     case 'SET_VALIDATION_RESULTS':
       return { ...state, validationResults: action.payload };
+    case 'SET_LOOKBACK_YEARS':
+      return { ...state, lookbackYears: action.payload };
+    case 'UPDATE_FIRST_PARTY_CHANNELS':
+      return {
+        ...state,
+        config: {
+          ...state.config,
+          firstPartyChannels: { ...state.config.firstPartyChannels, ...action.payload },
+        },
+      };
     case 'UPDATE_CONFIG':
       return { ...state, config: { ...state.config, ...action.payload } };
     case 'UPDATE_EXTERNAL_FACTORS':

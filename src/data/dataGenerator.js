@@ -1,12 +1,12 @@
 const CHANNELS = [
-  { name: 'Paid Search', key: 'paid_search', avgCPM: 45, avgROI: 2.8 },
-  { name: 'Social Media', key: 'social_media', avgCPM: 28, avgROI: 1.9 },
-  { name: 'Display Ads', key: 'display_ads', avgCPM: 12, avgROI: 1.2 },
-  { name: 'Video (YouTube)', key: 'video_youtube', avgCPM: 22, avgROI: 2.1 },
-  { name: 'Email Marketing', key: 'email', avgCPM: 5, avgROI: 3.5 },
-  { name: 'TV Broadcast', key: 'tv_broadcast', avgCPM: 35, avgROI: 1.6 },
-  { name: 'Radio', key: 'radio', avgCPM: 15, avgROI: 1.1 },
-  { name: 'Print', key: 'print', avgCPM: 18, avgROI: 0.8 },
+  { name: 'Meta Ads', key: 'meta_ads', avgCPM: 28, avgROI: 1.9 },
+  { name: 'Google Ads', key: 'google_ads', avgCPM: 45, avgROI: 2.8 },
+  { name: 'LinkedIn Ads', key: 'linkedin_ads', avgCPM: 35, avgROI: 1.6 },
+  { name: 'TikTok Ads', key: 'tiktok_ads', avgCPM: 12, avgROI: 1.2 },
+  { name: 'Amazon Ads', key: 'amazon_ads', avgCPM: 22, avgROI: 2.1 },
+  { name: 'YouTube Ads', key: 'youtube_ads', avgCPM: 18, avgROI: 1.8 },
+  { name: 'Bing Ads', key: 'bing_ads', avgCPM: 15, avgROI: 1.1 },
+  { name: 'X Ads', key: 'x_ads', avgCPM: 10, avgROI: 0.8 },
 ];
 
 const GEOS = [
@@ -60,24 +60,39 @@ function hillFunction(x, ec, slope) {
   return xn / (xn + ecn);
 }
 
-export function generateSyntheticData(profile) {
+export function generateSyntheticData(profile, lookbackYears = null) {
   const rng = seededRandom(42);
   let numWeeks, geos, channels, startDate;
 
-  switch (profile) {
-    case 'fully_compliant':
-      numWeeks = 156; geos = GEOS; channels = CHANNELS; startDate = '2022-01-03';
-      break;
-    case 'partially_compliant':
-      numWeeks = 78; geos = GEOS.slice(0, 3); channels = CHANNELS; startDate = '2024-07-01';
-      break;
-    case 'non_compliant':
-      numWeeks = 26;
-      geos = [{ name: 'National', key: 'national', pop: 330000000 }];
-      channels = CHANNELS; startDate = '2025-07-01';
-      break;
-    default:
-      throw new Error('Unknown profile: ' + profile);
+  // If lookbackYears is provided, use it to calculate data range from today
+  if (lookbackYears) {
+    numWeeks = lookbackYears * 52;
+    geos = GEOS;
+    channels = CHANNELS;
+    const today = new Date();
+    const start = new Date(today);
+    start.setFullYear(start.getFullYear() - lookbackYears);
+    // Align to Monday
+    const day = start.getDay();
+    const diff = day === 0 ? 1 : (day === 1 ? 0 : 8 - day);
+    start.setDate(start.getDate() + diff);
+    startDate = start.toISOString().split('T')[0];
+  } else {
+    switch (profile) {
+      case 'fully_compliant':
+        numWeeks = 156; geos = GEOS; channels = CHANNELS; startDate = '2022-01-03';
+        break;
+      case 'partially_compliant':
+        numWeeks = 78; geos = GEOS.slice(0, 3); channels = CHANNELS; startDate = '2024-07-01';
+        break;
+      case 'non_compliant':
+        numWeeks = 26;
+        geos = [{ name: 'National', key: 'national', pop: 330000000 }];
+        channels = CHANNELS; startDate = '2025-07-01';
+        break;
+      default:
+        throw new Error('Unknown profile: ' + profile);
+    }
   }
 
   const weeks = generateWeeks(startDate, numWeeks);
@@ -141,6 +156,15 @@ export function generateSyntheticData(profile) {
     });
   });
 
+  // Generate 1st party channel data scaled to look-back window
+  const weeksCount = weeks.length;
+  const weeklyEmailSent = Math.round(85000 + rng() * 35000);
+  const weeklyWhatsAppSent = Math.round(42000 + rng() * 18000);
+  const weeklySMSSent = Math.round(65000 + rng() * 25000);
+  const emailOpenRate = 0.22 + rng() * 0.12;
+  const whatsappOpenRate = 0.85 + rng() * 0.10;
+  const smsOpenRate = 0.92 + rng() * 0.06;
+
   const firstPartyData = {
     crmSegments: [
       { name: 'High-Value Customers', size: 125000, avgLTV: 2400 },
@@ -153,16 +177,37 @@ export function generateSyntheticData(profile) {
       { range: '61-80', pct: 32 }, { range: '81-100', pct: 20 },
     ]},
     conversionPaths: { avgTouchpoints: 4.2, topPaths: [
-      { path: 'Search > Social > Email > Purchase', pct: 18 },
-      { path: 'Display > Search > Purchase', pct: 14 },
-      { path: 'Social > Video > Search > Purchase', pct: 12 },
-      { path: 'Email > Search > Purchase', pct: 11 },
+      { path: 'Google Ads > Meta Ads > Email > Purchase', pct: 18 },
+      { path: 'TikTok Ads > Google Ads > Purchase', pct: 14 },
+      { path: 'Meta Ads > YouTube Ads > Google Ads > Purchase', pct: 12 },
+      { path: 'Email > Google Ads > Purchase', pct: 11 },
       { path: 'Direct > Purchase', pct: 9 },
     ]},
+    firstPartyChannels: {
+      email: {
+        totalSent: weeklyEmailSent * weeksCount,
+        totalOpened: Math.round(weeklyEmailSent * weeksCount * emailOpenRate),
+        openRate: emailOpenRate,
+        weeklySent: weeklyEmailSent,
+      },
+      whatsapp: {
+        totalSent: weeklyWhatsAppSent * weeksCount,
+        totalOpened: Math.round(weeklyWhatsAppSent * weeksCount * whatsappOpenRate),
+        openRate: whatsappOpenRate,
+        weeklySent: weeklyWhatsAppSent,
+      },
+      sms: {
+        totalSent: weeklySMSSent * weeksCount,
+        totalOpened: Math.round(weeklySMSSent * weeksCount * smsOpenRate),
+        openRate: smsOpenRate,
+        weeklySent: weeklySMSSent,
+      },
+    },
   };
 
   return {
-    profile, rows, weeks, numWeeks, numGeos: geos.length, numChannels: channels.length,
+    profile: lookbackYears ? lookbackYears + '_year' : profile,
+    rows, weeks, numWeeks, numGeos: geos.length, numChannels: channels.length,
     channels: channels.map((c) => ({ ...c, stats: channelStats[c.key] })),
     geos: geos.map((g) => ({ ...g, stats: geoStats[g.key] })),
     firstPartyData,
@@ -332,6 +377,25 @@ export function generateModelResults(data, config) {
     convergenceStatus: 'PASS', roiPlausibility: 'PASS', priorPosteriorShift: 'PASS', overallStatus: 'PASS',
     chains: 4, warmupSteps: 500, samplingSteps: 500, totalTime: '3m 24s',
   };
+
+  // Add Organic channel for 1st party data when connected
+  if (config.connectFirstParty) {
+    const organicSpend = 0; // Organic has no media spend
+    const organicContribution = totalContribution * (0.08 + rng() * 0.06); // 8-14% of total
+    const organicROI = 0;
+    channelROI.push({
+      channel: 'Organic', key: 'organic', roi: organicROI, roi_lower: 0, roi_upper: 0,
+      mROI: 0, mROI_lower: 0, mROI_upper: 0,
+      totalSpend: organicSpend, contribution: organicContribution,
+      spendShare: 0, contributionShare: organicContribution / (totalContribution + organicContribution),
+      effectiveness: organicContribution,
+    });
+    // Recalculate contribution shares including organic
+    const newTotalContribution = channelROI.reduce((s, c) => s + c.contribution, 0);
+    channelROI.forEach((c) => {
+      c.contributionShare = c.contribution / newTotalContribution;
+    });
+  }
 
   const firstPartyEnrichment = config.connectFirstParty ? {
     uplift: parseFloat((0.12 + rng() * 0.08).toFixed(2)),

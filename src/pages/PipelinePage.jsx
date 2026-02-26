@@ -4,32 +4,41 @@ import { generateSyntheticData, validateData, CHANNELS } from '../data/dataGener
 import Papa from 'papaparse';
 import {
   Database, CheckCircle, AlertTriangle, XCircle, ArrowRight, ArrowLeft,
-  Loader, CloudLightning, FileSpreadsheet, Upload, FileWarning, Trash2,
+  Loader, CloudLightning, FileSpreadsheet, Upload, FileWarning, Trash2, Download,
 } from 'lucide-react';
 
-const WIZARD_STEPS_SYNTHETIC = ['Source', 'Data Profile', 'Preview', 'Validation'];
+const WIZARD_STEPS_SYNTHETIC = ['Source', 'Look-back Window', 'Preview', 'Validation'];
 const WIZARD_STEPS_CSV = ['Source', 'Upload CSV', 'Preview', 'Validation'];
 
-const DATA_PROFILES = [
-  {
-    key: 'fully_compliant', label: 'Fully Compliant',
-    badge: 'success', badgeLabel: 'Recommended',
-    desc: '3 years of weekly data across 15 DMAs with 8 media channels. Meets all Meridian requirements.',
-    details: ['156 weeks of history (Jan 2022 - Dec 2024)', '15 DMAs (top US markets by population)', '8 media channels with spend + impressions', 'Population data per DMA', 'Revenue KPI with natural seasonality'],
-  },
-  {
-    key: 'partially_compliant', label: 'Partially Compliant',
-    badge: 'warning', badgeLabel: 'Has Warnings',
-    desc: '1.5 years of data with only 3 DMAs. Below recommended thresholds but can still run.',
-    details: ['78 weeks of history (Jul 2024 - Dec 2025)', 'Only 3 DMAs (below recommended 50+)', '8 media channels', 'Will trigger data sufficiency warnings', 'Model will run with wider credible intervals'],
-  },
-  {
-    key: 'non_compliant', label: 'Non-Compliant',
-    badge: 'error', badgeLabel: 'Will Fail',
-    desc: '6 months of national-level data only. Does not meet minimum Meridian requirements.',
-    details: ['26 weeks only (needs 156 for national)', 'National level only (no geo breakdown)', '8 media channels', 'Will trigger blocking errors', 'Model cannot proceed with this data'],
-  },
-];
+function getLookbackDateRange(years) {
+  const today = new Date();
+  const start = new Date(today);
+  start.setFullYear(start.getFullYear() - years);
+  return {
+    from: start.toISOString().split('T')[0],
+    to: today.toISOString().split('T')[0],
+  };
+}
+
+const LOOKBACK_OPTIONS = [1, 2, 3, 4].map((years) => {
+  const range = getLookbackDateRange(years);
+  return {
+    years,
+    label: years + ' Year' + (years > 1 ? 's' : ''),
+    weeks: years * 52,
+    range,
+    desc: years * 52 + ' weeks of weekly data across 15 DMAs with 8 media channels.',
+    details: [
+      years * 52 + ' weeks of history (' + range.from + ' to ' + range.to + ')',
+      '15 DMAs (top US markets by population)',
+      '8 media channels with spend + impressions',
+      'Population data per DMA',
+      'Revenue KPI with natural seasonality',
+    ],
+    badge: years >= 2 ? 'success' : 'warning',
+    badgeLabel: years >= 3 ? 'Recommended' : years >= 2 ? 'Compliant' : 'Minimum',
+  };
+});
 
 // Known column name aliases for Meridian-compatible CSVs
 const DATE_ALIASES = ['date', 'time', 'week', 'period', 'week_start', 'date_week', 'time_period'];
@@ -391,6 +400,7 @@ function convertCSVToInternalFormat(parsedMeta) {
   });
 
   // Generate placeholder first-party data
+  const weeksCount = uniqueDates.length;
   const firstPartyData = {
     crmSegments: [
       { name: 'High-Value Customers', size: 125000, avgLTV: 2400 },
@@ -403,12 +413,17 @@ function convertCSVToInternalFormat(parsedMeta) {
       { range: '61-80', pct: 32 }, { range: '81-100', pct: 20 },
     ]},
     conversionPaths: { avgTouchpoints: 4.2, topPaths: [
-      { path: 'Search > Social > Email > Purchase', pct: 18 },
-      { path: 'Display > Search > Purchase', pct: 14 },
-      { path: 'Social > Video > Search > Purchase', pct: 12 },
-      { path: 'Email > Search > Purchase', pct: 11 },
+      { path: 'Google Ads > Meta Ads > Email > Purchase', pct: 18 },
+      { path: 'TikTok Ads > Google Ads > Purchase', pct: 14 },
+      { path: 'Meta Ads > YouTube Ads > Google Ads > Purchase', pct: 12 },
+      { path: 'Email > Google Ads > Purchase', pct: 11 },
       { path: 'Direct > Purchase', pct: 9 },
     ]},
+    firstPartyChannels: {
+      email: { totalSent: 90000 * weeksCount, totalOpened: Math.round(90000 * weeksCount * 0.28), openRate: 0.28, weeklySent: 90000 },
+      whatsapp: { totalSent: 48000 * weeksCount, totalOpened: Math.round(48000 * weeksCount * 0.90), openRate: 0.90, weeklySent: 48000 },
+      sms: { totalSent: 72000 * weeksCount, totalOpened: Math.round(72000 * weeksCount * 0.95), openRate: 0.95, weeklySent: 72000 },
+    },
   };
 
   return {
@@ -435,7 +450,7 @@ export default function PipelinePage() {
   const { state, dispatch } = useApp();
   const [wizardStep, setWizardStep] = useState(0);
   const [sourceType, setSourceType] = useState('synthetic'); // 'synthetic' or 'csv'
-  const [selectedProfile, setSelectedProfile] = useState(null);
+  const [selectedLookback, setSelectedLookback] = useState(null);
   const [pipelineName, setPipelineName] = useState('MI_Meridian_Pipeline_01');
   const [isProcessing, setIsProcessing] = useState(false);
   const [generatedData, setGeneratedData] = useState(null);
@@ -453,11 +468,35 @@ export default function PipelinePage() {
   const handleGenerateData = () => {
     setIsProcessing(true);
     setTimeout(() => {
-      const data = generateSyntheticData(selectedProfile);
+      const data = generateSyntheticData(null, selectedLookback);
       setGeneratedData(data);
       setIsProcessing(false);
       setWizardStep(2);
     }, 1500);
+  };
+
+  const handleDownloadData = () => {
+    if (!generatedData) return;
+    const headers = ['time', 'geo', 'geoName', 'population', 'kpi'];
+    generatedData.channels.forEach((ch) => {
+      headers.push(ch.key + '_spend', ch.key + '_impressions');
+    });
+    const csvRows = [headers.join(',')];
+    generatedData.rows.forEach((row) => {
+      const values = [row.time, row.geo, row.geoName, row.population, row.kpi];
+      generatedData.channels.forEach((ch) => {
+        values.push(row[ch.key]?.spend || 0, row[ch.key]?.impressions || 0);
+      });
+      csvRows.push(values.join(','));
+    });
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'meridian_synthetic_data_' + selectedLookback + 'yr.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleCSVUpload = (file) => {
@@ -518,9 +557,10 @@ export default function PipelinePage() {
       const results = validateData(generatedData);
       setValidation(results);
       dispatch({ type: 'SET_PIPELINE_DATA', payload: generatedData });
-      dispatch({ type: 'SET_COMPLIANCE_LEVEL', payload: sourceType === 'csv' ? 'csv_upload' : selectedProfile });
+      dispatch({ type: 'SET_COMPLIANCE_LEVEL', payload: sourceType === 'csv' ? 'csv_upload' : selectedLookback + '_year' });
       dispatch({ type: 'SET_PIPELINE_NAME', payload: pipelineName });
       dispatch({ type: 'SET_VALIDATION_RESULTS', payload: results });
+      dispatch({ type: 'SET_LOOKBACK_YEARS', payload: selectedLookback || Math.round(generatedData.numWeeks / 52) });
       setIsProcessing(false);
       setWizardStep(3);
     }, 2000);
@@ -532,6 +572,7 @@ export default function PipelinePage() {
 
   const resetAll = () => {
     setWizardStep(0);
+    setSelectedLookback(null);
     setGeneratedData(null);
     setValidation(null);
     setCsvFile(null);
@@ -619,35 +660,38 @@ export default function PipelinePage() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
             <button className="slds-button slds-button_brand" onClick={() => setWizardStep(1)} disabled={!pipelineName}>
-              {sourceType === 'csv' ? <>Next: Upload CSV <ArrowRight size={14} /></> : <>Next: Select Data Profile <ArrowRight size={14} /></>}
+              {sourceType === 'csv' ? <>Next: Upload CSV <ArrowRight size={14} /></> : <>Next: Select Look-back Window <ArrowRight size={14} /></>}
             </button>
           </div>
         </div>
       )}
 
-      {/* Step 1: Data Profile Selection (Synthetic) */}
+      {/* Step 1: Look-back Window Selection (Synthetic) */}
       {wizardStep === 1 && sourceType === 'synthetic' && (
         <div className="animate-fade-in">
           <div className="slds-card" style={{ marginBottom: 16 }}>
-            <h2 className="slds-text-heading_medium" style={{ marginBottom: 4 }}>Select Data Profile</h2>
+            <h2 className="slds-text-heading_medium" style={{ marginBottom: 4 }}>Select Look-back Window</h2>
             <p style={{ fontSize: 13, color: '#706e6b' }}>
-              Choose a synthetic data profile to demonstrate Meridian&apos;s data validation and compliance requirements.
+              Choose the period of historical data to generate. Longer windows provide more robust Meridian model results.
             </p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-            {DATA_PROFILES.map((p) => (
-              <div key={p.key} className="slds-card" onClick={() => setSelectedProfile(p.key)} style={{
-                cursor: 'pointer', borderColor: selectedProfile === p.key ? '#0176d3' : undefined,
-                borderWidth: selectedProfile === p.key ? 2 : 1,
-                boxShadow: selectedProfile === p.key ? '0 0 0 1px #0176d3' : undefined,
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+            {LOOKBACK_OPTIONS.map((opt) => (
+              <div key={opt.years} className="slds-card" onClick={() => setSelectedLookback(opt.years)} style={{
+                cursor: 'pointer', borderColor: selectedLookback === opt.years ? '#0176d3' : undefined,
+                borderWidth: selectedLookback === opt.years ? 2 : 1,
+                boxShadow: selectedLookback === opt.years ? '0 0 0 1px #0176d3' : undefined,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <h3 style={{ fontSize: 15, fontWeight: 700 }}>{p.label}</h3>
-                  <span className={`slds-badge slds-badge_${p.badge}`}>{p.badgeLabel}</span>
+                  <h3 style={{ fontSize: 15, fontWeight: 700 }}>{opt.label}</h3>
+                  <span className={`slds-badge slds-badge_${opt.badge}`}>{opt.badgeLabel}</span>
                 </div>
-                <p style={{ fontSize: 13, color: '#706e6b', marginBottom: 12 }}>{p.desc}</p>
+                <p style={{ fontSize: 13, color: '#706e6b', marginBottom: 12 }}>{opt.desc}</p>
+                <div style={{ fontSize: 12, color: '#0176d3', fontWeight: 600, marginBottom: 8 }}>
+                  {opt.range.from} to {opt.range.to}
+                </div>
                 <ul style={{ fontSize: 12, color: '#706e6b', lineHeight: 1.8, paddingLeft: 16 }}>
-                  {p.details.map((d, i) => <li key={i}>{d}</li>)}
+                  {opt.details.map((d, i) => <li key={i}>{d}</li>)}
                 </ul>
               </div>
             ))}
@@ -656,7 +700,7 @@ export default function PipelinePage() {
             <button className="slds-button slds-button_neutral" onClick={() => setWizardStep(0)}>
               <ArrowLeft size={14} /> Back
             </button>
-            <button className="slds-button slds-button_brand" onClick={handleGenerateData} disabled={!selectedProfile || isProcessing}>
+            <button className="slds-button slds-button_brand" onClick={handleGenerateData} disabled={!selectedLookback || isProcessing}>
               {isProcessing ? <><Loader size={14} className="animate-pulse" /> Generating Data...</> : <>Generate Data <ArrowRight size={14} /></>}
             </button>
           </div>
@@ -844,7 +888,14 @@ export default function PipelinePage() {
       {wizardStep === 2 && generatedData && (
         <div className="animate-fade-in">
           <div className="slds-card">
-            <h2 className="slds-text-heading_medium" style={{ marginBottom: 16 }}>Data Preview</h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h2 className="slds-text-heading_medium">Data Preview</h2>
+              {sourceType === 'synthetic' && (
+                <button className="slds-button slds-button_neutral" onClick={handleDownloadData}>
+                  <Download size={14} /> Download CSV
+                </button>
+              )}
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
               {[
                 { label: 'Total Rows', value: generatedData.summary.totalRows.toLocaleString() },
@@ -999,7 +1050,7 @@ export default function PipelinePage() {
               </button>
             ) : (
               <button className="slds-button slds-button_neutral" onClick={() => { setWizardStep(1); setGeneratedData(null); setValidation(null); }}>
-                {sourceType === 'csv' ? 'Upload Different File' : 'Choose Different Data Profile'}
+                {sourceType === 'csv' ? 'Upload Different File' : 'Choose Different Look-back Window'}
               </button>
             )}
           </div>
