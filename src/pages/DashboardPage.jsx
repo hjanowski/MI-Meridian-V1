@@ -6,7 +6,7 @@ import {
   LineChart, Line, AreaChart, Area, ScatterChart, Scatter, Cell,
   ComposedChart, ReferenceLine,
 } from 'recharts';
-import { Download, FileSpreadsheet, TrendingUp, DollarSign, Target, BarChart3, Layers, Activity, Users } from 'lucide-react';
+import { Download, FileSpreadsheet, TrendingUp, DollarSign, Target, BarChart3, Layers, Activity } from 'lucide-react';
 
 const COLORS = ['#0176d3', '#2e844a', '#fe9339', '#ba0517', '#9050e9', '#04844b', '#3296ed', '#fcc003', '#7b8b8e'];
 
@@ -16,7 +16,6 @@ const TABS = [
   { key: 'response', label: 'Response Curves', icon: TrendingUp },
   { key: 'media', label: 'Media Effects', icon: Activity },
   { key: 'optimization', label: 'Budget Optimization', icon: Target },
-  { key: 'firstparty', label: '1st Party Data', icon: Users },
 ];
 
 function formatCurrency(val) {
@@ -101,7 +100,6 @@ export default function DashboardPage() {
       <div className="slds-tabs">
         {TABS.map((tab) => {
           const Icon = tab.icon;
-          if (tab.key === 'firstparty' && !data.firstPartyEnrichment) return null;
           return (
             <button key={tab.key} className={`slds-tabs__item ${activeTab === tab.key ? 'slds-is-active' : ''}`} onClick={() => setActiveTab(tab.key)}>
               <Icon size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />{tab.label}
@@ -501,37 +499,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ===== 1ST PARTY DATA TAB ===== */}
-      {activeTab === 'firstparty' && data.firstPartyEnrichment && (
-        <div className="animate-fade-in">
-          <div className="slds-notify slds-notify_success" style={{ marginBottom: 16 }}>
-            <Users size={18} />
-            <div>
-              <strong>1st Party Data Connected via Salesforce Data Cloud</strong>
-              <div style={{ fontSize: 12, marginTop: 4 }}>
-                CRM data enrichment improved model accuracy by an estimated <strong>{(data.firstPartyEnrichment.uplift * 100).toFixed(0)}%</strong>.
-              </div>
-            </div>
-          </div>
-
-          {/* Conversion paths */}
-          <div className="slds-card" style={{ marginTop: 16 }}>
-            <h3 className="slds-text-heading_small" style={{ marginBottom: 12 }}>Top Conversion Paths (from Data Cloud)</h3>
-            {state.pipelineData?.firstPartyData?.conversionPaths?.topPaths.map((p, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-                <div style={{ width: 30, fontSize: 12, fontWeight: 700, color: '#706e6b' }}>#{i + 1}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{p.path}</div>
-                  <div style={{ height: 6, background: '#e5e5e5', borderRadius: 3, marginTop: 4 }}>
-                    <div style={{ width: (p.pct / 20 * 100) + '%', height: '100%', background: COLORS[i % COLORS.length], borderRadius: 3 }} />
-                  </div>
-                </div>
-                <div style={{ width: 50, textAlign: 'right', fontSize: 13, fontWeight: 700 }}>{p.pct}%</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

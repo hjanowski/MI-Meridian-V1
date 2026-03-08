@@ -537,11 +537,12 @@ export default function ConfigPage() {
 
         {/* Summary of current settings */}
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16,
+          display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 16,
         }}>
           {[
             { label: 'Adstock Decay', value: config.adstockDecay === 'geometric' ? 'Geometric' : 'Binomial' },
             { label: 'Max Lag', value: config.maxLag + ' weeks' },
+            { label: 'Knots', value: config.knots === 'auto' ? 'Automatic' : config.knots === 'aks' ? 'AKS' : config.knots === '10pct' ? '10%' : 'Single' },
             { label: 'ROI Prior Mean', value: config.priorROI.mean.toFixed(1) },
             { label: 'ROI Prior Std', value: config.priorROI.std.toFixed(1) },
           ].map((item, i) => (
@@ -572,6 +573,8 @@ export default function ConfigPage() {
             border: '1px solid #e5e5e5', borderTop: 'none', borderRadius: '0 0 6px 6px',
             padding: 20,
           }}>
+            {/* Adstock & Saturation */}
+            <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Adstock & Saturation</h4>
             <div style={{
               display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16,
             }}>
@@ -597,6 +600,32 @@ export default function ConfigPage() {
               </div>
             </div>
 
+            {/* Knot Configuration */}
+            <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, marginTop: 8 }}>Knot Configuration</h4>
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16,
+            }}>
+              <div className="slds-form-element" style={{ marginBottom: 0 }}>
+                <label className="slds-form-element__label">Knots (time-varying intercept)</label>
+                <select className="slds-select" value={config.knots} onChange={(e) => updateConfig({ knots: e.target.value })}>
+                  <option value="auto">Automatic (1 per time period)</option>
+                  <option value="aks">Automatic Knot Selection (AKS)</option>
+                  <option value="10pct">10% of time periods</option>
+                  <option value="1">Single knot (constant intercept)</option>
+                </select>
+                <div className="slds-form-element__help">Controls how seasonality and trend are captured. &quot;Auto&quot; gives maximum flexibility.</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <label className="slds-checkbox-toggle">
+                  <input type="checkbox" checked={config.enableAKS} onChange={(e) => updateConfig({ enableAKS: e.target.checked })} />
+                  <div className="slds-checkbox-toggle__track" />
+                  <span className="slds-checkbox-toggle__label">Enable Automatic Knot Selection (AKS)</span>
+                </label>
+                <div className="slds-form-element__help" style={{ marginTop: 4 }}>Uses backward elimination + AIC to find optimal knot placement.</div>
+              </div>
+            </div>
+
+            {/* Prior Distributions */}
             <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, marginTop: 8 }}>Prior Distributions</h4>
             <div className="slds-notify slds-notify_info" style={{ marginBottom: 12 }}>
               <Info size={16} />
@@ -634,29 +663,28 @@ export default function ConfigPage() {
           </span>
         }
       >
-        {/* Seasonality & Time Controls */}
+        {/* Seasonality & Time Controls summary */}
         <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Seasonality & Time Controls</h3>
         <div style={{
-          background: '#f8f8f8', borderRadius: 6, padding: 20, marginBottom: 20,
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
+          background: '#f8f8f8', borderRadius: 6, padding: 16, marginBottom: 20,
+          display: 'flex', alignItems: 'center', gap: 16,
         }}>
-          <div className="slds-form-element" style={{ marginBottom: 0 }}>
-            <label className="slds-form-element__label">Knots (time-varying intercept)</label>
-            <select className="slds-select" value={config.knots} onChange={(e) => updateConfig({ knots: e.target.value })}>
-              <option value="auto">Automatic (1 per time period)</option>
-              <option value="aks">Automatic Knot Selection (AKS)</option>
-              <option value="10pct">10% of time periods</option>
-              <option value="1">Single knot (constant intercept)</option>
-            </select>
-            <div className="slds-form-element__help">Controls how seasonality and trend are captured. &quot;Auto&quot; gives maximum flexibility.</div>
+          <div style={{ display: 'flex', gap: 24, flex: 1 }}>
+            <div>
+              <div style={{ fontSize: 11, color: '#706e6b', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Knots</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#181818' }}>
+                {config.knots === 'auto' ? 'Automatic (1 per period)' : config.knots === 'aks' ? 'Automatic Knot Selection' : config.knots === '10pct' ? '10% of periods' : 'Single knot'}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: '#706e6b', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>AKS</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: config.enableAKS ? '#2e844a' : '#706e6b' }}>
+                {config.enableAKS ? 'Enabled' : 'Disabled'}
+              </div>
+            </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <label className="slds-checkbox-toggle">
-              <input type="checkbox" checked={config.enableAKS} onChange={(e) => updateConfig({ enableAKS: e.target.checked })} />
-              <div className="slds-checkbox-toggle__track" />
-              <span className="slds-checkbox-toggle__label">Enable Automatic Knot Selection (AKS)</span>
-            </label>
-            <div className="slds-form-element__help" style={{ marginTop: 4 }}>Uses backward elimination + AIC to find optimal knot placement.</div>
+          <div style={{ fontSize: 12, color: '#706e6b' }}>
+            To customize knot settings, use <strong>Advanced Settings</strong> in Model Settings above.
           </div>
         </div>
 
