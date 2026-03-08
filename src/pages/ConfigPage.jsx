@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Settings, Database, Info, ArrowRight, ArrowLeft, Clock, Sliders, BarChart3, CloudLightning, CheckCircle, Edit3, AlertTriangle, Mail, MessageSquare, Smartphone } from 'lucide-react';
+import { Settings, Database, Info, ArrowRight, ArrowLeft, Clock, Sliders, BarChart3, CloudLightning, CheckCircle, Edit3, AlertTriangle, Mail, MessageSquare, Smartphone, ChevronDown, ChevronUp, Search, Filter } from 'lucide-react';
 
 function StatusDot({ active }) {
   return (
@@ -120,7 +121,7 @@ export default function ConfigPage() {
           { label: '1st Party Data', value: config.connectFirstParty ? 'Connected' : 'Disconnected' },
           { label: 'Model Period', value: modelLookback + ' Year' + (modelLookback > 1 ? 's' : '') },
           { label: 'KPI Type', value: config.kpiType === 'revenue' ? 'Revenue' : 'Conversions' },
-          { label: 'Adstock', value: config.adstockDecay === 'geometric' ? 'Geometric' : 'Binomial' },
+          { label: 'DMO Source', value: config.kpiDMO?.objectName ? config.kpiDMO.objectName.replace('__dlm', '') : 'Not Set' },
           { label: 'External Factors', value: `${enabledFactors}/${totalFactors} enabled` },
           { label: 'Budget', value: '$' + config.budgetOptimization.totalBudget.toLocaleString() },
           { label: 'Status', value: insufficientData ? 'Insufficient Data' : state.validationResults?.canProceed ? 'Ready' : 'Pending' },
@@ -316,142 +317,309 @@ export default function ConfigPage() {
               </div>
             )}
 
-            {/* CRM segments */}
-            {state.pipelineData?.firstPartyData && (
-              <div style={{ marginTop: 16 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>CRM Segments</h3>
-                <table className="slds-table">
-                  <thead>
-                    <tr><th>CRM Segment</th><th>Contacts</th><th>Avg LTV</th></tr>
-                  </thead>
-                  <tbody>
-                    {state.pipelineData.firstPartyData.crmSegments.map((s, i) => (
-                      <tr key={i}>
-                        <td style={{ fontWeight: 600 }}>{s.name}</td>
-                        <td>{s.size.toLocaleString()}</td>
-                        <td>${s.avgLTV.toLocaleString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </div>
         )}
       </Section>
 
-      {/* Meridian Model Specification */}
-      <Section icon={Settings} color="#0176d3" title="Meridian Model Specification">
-        {/* KPI Type configuration at the top */}
+      {/* KPI Configuration */}
+      <Section icon={BarChart3} color="#0176d3" title="KPI Configuration">
+        {/* KPI Type selection */}
+        <p style={{ fontSize: 13, color: '#706e6b', marginBottom: 16 }}>
+          Select the KPI metric to model. Then configure the Data Cloud data source for this metric.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+          {[
+            { value: 'revenue', label: 'Revenue', desc: 'Model revenue as the target KPI. Enables direct ROI calculation.' },
+            { value: 'non_revenue', label: 'Conversions', desc: 'Model non-revenue conversions (leads, sign-ups, etc.) as the target KPI.' },
+          ].map((kpi) => (
+            <div
+              key={kpi.value}
+              onClick={() => updateConfig({ kpiType: kpi.value })}
+              style={{
+                border: `2px solid ${config.kpiType === kpi.value ? '#0176d3' : '#e5e5e5'}`,
+                borderRadius: 8, padding: 20, cursor: 'pointer',
+                background: config.kpiType === kpi.value ? '#e5f5fe' : 'white',
+              }}
+            >
+              <div style={{ fontSize: 16, fontWeight: 700, color: config.kpiType === kpi.value ? '#0176d3' : '#181818', marginBottom: 4 }}>
+                {kpi.label}
+              </div>
+              <div style={{ fontSize: 12, color: '#706e6b' }}>{kpi.desc}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* DMO Configuration */}
         <div style={{
-          background: '#e5f5fe', borderRadius: 6, padding: 20, marginBottom: 20,
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
+          background: '#f8f8f8', borderRadius: 8, padding: 20, marginBottom: 16,
         }}>
-          <div className="slds-form-element" style={{ marginBottom: 0 }}>
-            <label className="slds-form-element__label" style={{ fontWeight: 700, fontSize: 14 }}>KPI Type</label>
-            <select className="slds-select" value={config.kpiType} onChange={(e) => updateConfig({ kpiType: e.target.value })}>
-              <option value="revenue">Revenue</option>
-              <option value="non_revenue">Non-Revenue (Conversions)</option>
-            </select>
-            <div className="slds-form-element__help">Determines how ROI is calculated. Revenue KPIs allow direct ROI computation.</div>
+          <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
+            Data Cloud Source for {config.kpiType === 'revenue' ? 'Revenue' : 'Conversions'}
+          </h3>
+          <p style={{ fontSize: 12, color: '#706e6b', marginBottom: 16 }}>
+            Configure the Data Model Object (DMO), field, and optional filters from your mapped Data Cloud objects.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+            <div className="slds-form-element" style={{ marginBottom: 0 }}>
+              <label className="slds-form-element__label" style={{ fontWeight: 600 }}>Data Model Object (DMO)</label>
+              <select
+                className="slds-select"
+                value={config.kpiDMO?.objectName || ''}
+                onChange={(e) => updateConfig({
+                  kpiDMO: { ...config.kpiDMO, objectName: e.target.value },
+                })}
+              >
+                <option value="">-- Select a DMO --</option>
+                {config.kpiType === 'revenue' ? (
+                  <>
+                    <option value="Sales_Order__dlm">Sales Order</option>
+                    <option value="Revenue_Event__dlm">Revenue Event</option>
+                    <option value="Transaction__dlm">Transaction</option>
+                    <option value="Opportunity__dlm">Opportunity</option>
+                    <option value="Invoice__dlm">Invoice</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="Lead__dlm">Lead</option>
+                    <option value="Contact_Point_Email__dlm">Contact Point Email</option>
+                    <option value="Campaign_Member__dlm">Campaign Member</option>
+                    <option value="Engagement_Event__dlm">Engagement Event</option>
+                    <option value="Web_Event__dlm">Web Event</option>
+                  </>
+                )}
+              </select>
+              <div className="slds-form-element__help">The primary object containing your {config.kpiType === 'revenue' ? 'revenue' : 'conversion'} data.</div>
+            </div>
+            <div className="slds-form-element" style={{ marginBottom: 0 }}>
+              <label className="slds-form-element__label" style={{ fontWeight: 600 }}>
+                {config.kpiType === 'revenue' ? 'Revenue' : 'Conversion'} Field
+              </label>
+              <select
+                className="slds-select"
+                value={config.kpiDMO?.fieldName || ''}
+                onChange={(e) => updateConfig({
+                  kpiDMO: { ...config.kpiDMO, fieldName: e.target.value },
+                })}
+              >
+                <option value="">-- Select a field --</option>
+                {config.kpiType === 'revenue' ? (
+                  <>
+                    <option value="TotalAmount__c">Total Amount</option>
+                    <option value="NetRevenue__c">Net Revenue</option>
+                    <option value="GrossRevenue__c">Gross Revenue</option>
+                    <option value="RecurringRevenue__c">Recurring Revenue</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="ConversionCount__c">Conversion Count</option>
+                    <option value="LeadCount__c">Lead Count</option>
+                    <option value="SignUpCount__c">Sign-up Count</option>
+                    <option value="EventCount__c">Event Count</option>
+                  </>
+                )}
+              </select>
+              <div className="slds-form-element__help">The field to aggregate as the KPI metric.</div>
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <div style={{ background: 'white', borderRadius: 6, padding: 12, width: '100%' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#706e6b', textTransform: 'uppercase' }}>Current KPI Type</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#0176d3', marginTop: 4 }}>
-                {config.kpiType === 'revenue' ? 'Revenue' : 'Non-Revenue (Conversions)'}
+
+          {/* Filtering */}
+          <div style={{ marginBottom: 16 }}>
+            <label className="slds-form-element__label" style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Filter size={14} /> Filters (Optional)
+            </label>
+            <div style={{
+              background: 'white', border: '1px solid #e5e5e5', borderRadius: 6, padding: 12,
+              display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12,
+            }}>
+              <div className="slds-form-element" style={{ marginBottom: 0 }}>
+                <label className="slds-form-element__label" style={{ fontSize: 11 }}>Filter Field</label>
+                <select
+                  className="slds-select"
+                  value={config.kpiDMO?.filterField || ''}
+                  onChange={(e) => updateConfig({
+                    kpiDMO: { ...config.kpiDMO, filterField: e.target.value },
+                  })}
+                >
+                  <option value="">None</option>
+                  <option value="Status__c">Status</option>
+                  <option value="Region__c">Region</option>
+                  <option value="Channel__c">Channel</option>
+                  <option value="Product_Category__c">Product Category</option>
+                </select>
+              </div>
+              <div className="slds-form-element" style={{ marginBottom: 0 }}>
+                <label className="slds-form-element__label" style={{ fontSize: 11 }}>Operator</label>
+                <select
+                  className="slds-select"
+                  value={config.kpiDMO?.filterOperator || 'equals'}
+                  onChange={(e) => updateConfig({
+                    kpiDMO: { ...config.kpiDMO, filterOperator: e.target.value },
+                  })}
+                >
+                  <option value="equals">Equals</option>
+                  <option value="not_equals">Not Equals</option>
+                  <option value="contains">Contains</option>
+                  <option value="in">In</option>
+                </select>
+              </div>
+              <div className="slds-form-element" style={{ marginBottom: 0 }}>
+                <label className="slds-form-element__label" style={{ fontSize: 11 }}>Value</label>
+                <input
+                  className="slds-input"
+                  type="text"
+                  placeholder="e.g. Closed Won"
+                  value={config.kpiDMO?.filterValue || ''}
+                  onChange={(e) => updateConfig({
+                    kpiDMO: { ...config.kpiDMO, filterValue: e.target.value },
+                  })}
+                />
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Parameter summary table */}
-        <table className="slds-table" style={{ marginBottom: 20 }}>
-          <thead>
-            <tr><th>Parameter</th><th>Current Value</th><th></th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style={{ fontWeight: 600 }}>KPI Type</td>
-              <td>{config.kpiType === 'revenue' ? 'Revenue' : 'Non-Revenue (Conversions)'}</td>
-              <td style={{ width: 32 }}><Edit3 size={14} color="#706e6b" /></td>
-            </tr>
-            <tr>
-              <td style={{ fontWeight: 600 }}>Adstock Decay</td>
-              <td>{config.adstockDecay === 'geometric' ? 'Geometric (exponential)' : 'Binomial (delayed peak)'}</td>
-              <td><Edit3 size={14} color="#706e6b" /></td>
-            </tr>
-            <tr>
-              <td style={{ fontWeight: 600 }}>Max Lag</td>
-              <td>{config.maxLag} weeks</td>
-              <td><Edit3 size={14} color="#706e6b" /></td>
-            </tr>
-            <tr>
-              <td style={{ fontWeight: 600 }}>Hill Before Adstock</td>
-              <td><StatusDot active={config.hillBeforeAdstock} /></td>
-              <td><Edit3 size={14} color="#706e6b" /></td>
-            </tr>
-          </tbody>
-        </table>
-        <div style={{
-          background: '#f8f8f8', borderRadius: 6, padding: 20,
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
-        }}>
-          <div className="slds-form-element" style={{ marginBottom: 0 }}>
-            <label className="slds-form-element__label">Adstock Decay Function</label>
-            <select className="slds-select" value={config.adstockDecay} onChange={(e) => updateConfig({ adstockDecay: e.target.value })}>
-              <option value="geometric">Geometric (exponential decay)</option>
-              <option value="binomial">Binomial (delayed peak)</option>
-            </select>
-            <div className="slds-form-element__help">Geometric is simpler; Binomial captures delayed media effects better.</div>
-          </div>
-          <div className="slds-form-element" style={{ marginBottom: 0 }}>
-            <label className="slds-form-element__label">Maximum Lag (weeks)</label>
-            <input className="slds-input" type="number" min={1} max={26} value={config.maxLag} onChange={(e) => updateConfig({ maxLag: parseInt(e.target.value) || 8 })} />
-            <div className="slds-form-element__help">Weeks of carryover effect to model for media channels.</div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <label className="slds-checkbox-toggle">
-              <input type="checkbox" checked={config.hillBeforeAdstock} onChange={(e) => updateConfig({ hillBeforeAdstock: e.target.checked })} />
-              <div className="slds-checkbox-toggle__track" />
-              <span className="slds-checkbox-toggle__label">Apply Hill saturation before adstock</span>
-            </label>
-          </div>
+          {/* Date Range Availability */}
+          {config.kpiDMO?.objectName && config.kpiDMO?.fieldName && (
+            <div style={{
+              background: '#e6f7ec', border: '1px solid #2e844a', borderRadius: 8, padding: 16,
+              display: 'flex', alignItems: 'center', gap: 12,
+            }}>
+              <CheckCircle size={20} color="#2e844a" />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#2e844a' }}>Sufficient Data Available</div>
+                <div style={{ fontSize: 12, color: '#706e6b', marginTop: 4 }}>
+                  Data range: <strong>{modelDateRange.from}</strong> &ndash; <strong>{modelDateRange.to}</strong>
+                  &nbsp;&middot;&nbsp; {modelLookback * 52} weeks of {config.kpiType === 'revenue' ? 'revenue' : 'conversion'} data matches the paid media date range.
+                </div>
+              </div>
+              <span style={{
+                fontSize: 12, fontWeight: 600, color: '#2e844a',
+                background: 'white', padding: '4px 12px', borderRadius: 12,
+              }}>
+                {modelLookback * 52} weeks
+              </span>
+            </div>
+          )}
+          {config.kpiDMO?.objectName && !config.kpiDMO?.fieldName && (
+            <div style={{
+              background: '#fef0ef', border: '1px solid #ea001e', borderRadius: 8, padding: 16,
+              display: 'flex', alignItems: 'center', gap: 12,
+            }}>
+              <AlertTriangle size={20} color="#ea001e" />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#ea001e' }}>Insufficient Data Available</div>
+                <div style={{ fontSize: 12, color: '#706e6b', marginTop: 4 }}>
+                  Please select a field to check data availability.
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </Section>
 
-      {/* Prior Distributions */}
-      <Section icon={Sliders} color="#2e844a" title="Prior Distributions"
+      {/* Model Settings (simplified) */}
+      <Section icon={Settings} color="#0176d3" title="Model Settings"
         badge={
           <span style={{
-            fontSize: 12, color: '#706e6b', fontWeight: 500,
+            fontSize: 12, fontWeight: 500, color: '#706e6b',
             background: '#f3f3f3', padding: '4px 12px', borderRadius: 12,
           }}>
-            Median ROI = {Math.exp(config.priorROI.mean).toFixed(2)}
+            Standard Configuration
           </span>
         }
       >
         <div className="slds-notify slds-notify_info" style={{ marginBottom: 16 }}>
           <Info size={16} />
-          <div style={{ fontSize: 12 }}>Meridian uses Bayesian priors on ROI. Default: LogNormal(0.0, 0.5) giving median ROI of 1.0.</div>
+          <div style={{ fontSize: 12 }}>
+            Meridian uses standard defaults that work well for most use cases. For expert users, expand Advanced Settings below.
+          </div>
         </div>
+
+        {/* Summary of current settings */}
         <div style={{
-          background: '#f8f8f8', borderRadius: 6, padding: 20,
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
+          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16,
         }}>
-          <div className="slds-form-element" style={{ marginBottom: 0 }}>
-            <label className="slds-form-element__label">ROI Prior Mean (log scale)</label>
-            <input className="slds-input" type="number" step={0.1} value={config.priorROI.mean} onChange={(e) => updateConfig({ priorROI: { ...config.priorROI, mean: parseFloat(e.target.value) || 0 } })} />
-          </div>
-          <div className="slds-form-element" style={{ marginBottom: 0 }}>
-            <label className="slds-form-element__label">ROI Prior Std (log scale)</label>
-            <input className="slds-input" type="number" step={0.1} min={0.1} value={config.priorROI.std} onChange={(e) => updateConfig({ priorROI: { ...config.priorROI, std: parseFloat(e.target.value) || 0.5 } })} />
-          </div>
+          {[
+            { label: 'Adstock Decay', value: config.adstockDecay === 'geometric' ? 'Geometric' : 'Binomial' },
+            { label: 'Max Lag', value: config.maxLag + ' weeks' },
+            { label: 'ROI Prior Mean', value: config.priorROI.mean.toFixed(1) },
+            { label: 'ROI Prior Std', value: config.priorROI.std.toFixed(1) },
+          ].map((item, i) => (
+            <div key={i} style={{
+              background: '#f8f8f8', borderRadius: 6, padding: 12, textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 11, color: '#706e6b', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>{item.label}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#181818' }}>{item.value}</div>
+            </div>
+          ))}
         </div>
-        <div className="slds-form-element__help" style={{ marginTop: 8 }}>
-          Median ROI = e^{config.priorROI.mean} = {Math.exp(config.priorROI.mean).toFixed(2)}.
-          Higher std = less informative prior (more data-driven).
-        </div>
+
+        {/* Advanced Settings Toggle */}
+        <button
+          onClick={() => dispatch({ type: 'UPDATE_CONFIG', payload: { showAdvanced: !config.showAdvanced } })}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            background: '#f8f8f8', border: '1px solid #e5e5e5', borderRadius: 6,
+            padding: '12px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#0176d3',
+          }}
+        >
+          <span>Advanced Settings</span>
+          {config.showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+
+        {config.showAdvanced && (
+          <div style={{
+            border: '1px solid #e5e5e5', borderTop: 'none', borderRadius: '0 0 6px 6px',
+            padding: 20,
+          }}>
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16,
+            }}>
+              <div className="slds-form-element" style={{ marginBottom: 0 }}>
+                <label className="slds-form-element__label">Adstock Decay Function</label>
+                <select className="slds-select" value={config.adstockDecay} onChange={(e) => updateConfig({ adstockDecay: e.target.value })}>
+                  <option value="geometric">Geometric (exponential decay)</option>
+                  <option value="binomial">Binomial (delayed peak)</option>
+                </select>
+                <div className="slds-form-element__help">Geometric is simpler; Binomial captures delayed media effects better.</div>
+              </div>
+              <div className="slds-form-element" style={{ marginBottom: 0 }}>
+                <label className="slds-form-element__label">Maximum Lag (weeks)</label>
+                <input className="slds-input" type="number" min={1} max={26} value={config.maxLag} onChange={(e) => updateConfig({ maxLag: parseInt(e.target.value) || 8 })} />
+                <div className="slds-form-element__help">Weeks of carryover effect to model for media channels.</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <label className="slds-checkbox-toggle">
+                  <input type="checkbox" checked={config.hillBeforeAdstock} onChange={(e) => updateConfig({ hillBeforeAdstock: e.target.checked })} />
+                  <div className="slds-checkbox-toggle__track" />
+                  <span className="slds-checkbox-toggle__label">Apply Hill saturation before adstock</span>
+                </label>
+              </div>
+            </div>
+
+            <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, marginTop: 8 }}>Prior Distributions</h4>
+            <div className="slds-notify slds-notify_info" style={{ marginBottom: 12 }}>
+              <Info size={16} />
+              <div style={{ fontSize: 12 }}>Meridian uses Bayesian priors on ROI. Default: LogNormal(0.0, 0.5) giving median ROI of 1.0.</div>
+            </div>
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
+            }}>
+              <div className="slds-form-element" style={{ marginBottom: 0 }}>
+                <label className="slds-form-element__label">ROI Prior Mean (log scale)</label>
+                <input className="slds-input" type="number" step={0.1} value={config.priorROI.mean} onChange={(e) => updateConfig({ priorROI: { ...config.priorROI, mean: parseFloat(e.target.value) || 0 } })} />
+              </div>
+              <div className="slds-form-element" style={{ marginBottom: 0 }}>
+                <label className="slds-form-element__label">ROI Prior Std (log scale)</label>
+                <input className="slds-input" type="number" step={0.1} min={0.1} value={config.priorROI.std} onChange={(e) => updateConfig({ priorROI: { ...config.priorROI, std: parseFloat(e.target.value) || 0.5 } })} />
+              </div>
+            </div>
+            <div className="slds-form-element__help" style={{ marginTop: 8 }}>
+              Median ROI = e^{config.priorROI.mean} = {Math.exp(config.priorROI.mean).toFixed(2)}.
+              Higher std = less informative prior (more data-driven).
+            </div>
+          </div>
+        )}
       </Section>
 
       {/* External Factors, Seasonality & Time Controls (combined) */}

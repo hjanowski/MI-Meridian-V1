@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { generateOptimizationResults } from '../data/dataGenerator';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, ScatterChart, Scatter,
+  LineChart, Line, AreaChart, Area, ScatterChart, Scatter, Cell,
   ComposedChart, ReferenceLine,
 } from 'recharts';
 import { Download, FileSpreadsheet, TrendingUp, DollarSign, Target, BarChart3, Layers, Activity, Users } from 'lucide-react';
@@ -510,59 +510,6 @@ export default function DashboardPage() {
               <strong>1st Party Data Connected via Salesforce Data Cloud</strong>
               <div style={{ fontSize: 12, marginTop: 4 }}>
                 CRM data enrichment improved model accuracy by an estimated <strong>{(data.firstPartyEnrichment.uplift * 100).toFixed(0)}%</strong>.
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            {/* Segment Contributions */}
-            <div className="slds-card">
-              <h3 className="slds-text-heading_small" style={{ marginBottom: 12 }}>Revenue Contribution by CRM Segment</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie data={data.firstPartyEnrichment.segmentContributions} dataKey="contribution" nameKey="segment" cx="50%" cy="50%" outerRadius={90} label={({ segment, contribution }) => segment.split(' ')[0] + ' ' + (contribution * 100).toFixed(0) + '%'}>
-                    {data.firstPartyEnrichment.segmentContributions.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(v) => (v * 100).toFixed(1) + '%'} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Channel Affinities */}
-            <div className="slds-card">
-              <h3 className="slds-text-heading_small" style={{ marginBottom: 12 }}>Channel Affinity by Segment</h3>
-              <table className="slds-table">
-                <thead>
-                  <tr><th>Channel</th><th>High-Value Affinity</th><th>New Prospect Affinity</th></tr>
-                </thead>
-                <tbody>
-                  {data.firstPartyEnrichment.channelAffinities.map((a, i) => (
-                    <tr key={i}>
-                      <td style={{ fontWeight: 600 }}>{a.channel}</td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ width: 60, height: 6, background: '#e5e5e5', borderRadius: 3 }}>
-                            <div style={{ width: (parseFloat(a.highValue) * 100) + '%', height: '100%', background: '#0176d3', borderRadius: 3 }} />
-                          </div>
-                          {a.highValue}
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ width: 60, height: 6, background: '#e5e5e5', borderRadius: 3 }}>
-                            <div style={{ width: (parseFloat(a.newProspect) * 100) + '%', height: '100%', background: '#2e844a', borderRadius: 3 }} />
-                          </div>
-                          {a.newProspect}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div style={{ fontSize: 11, color: '#706e6b', marginTop: 12 }}>
-                Affinity scores range from 0 (low) to 1 (high). Higher scores indicate stronger channel preference for that segment.
               </div>
             </div>
           </div>

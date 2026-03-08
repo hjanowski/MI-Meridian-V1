@@ -14,6 +14,8 @@ const initialState = {
     firstPartyChannels: { email: false, whatsapp: false, sms: false },
     modelLookbackYears: 3, // The look-back period for model run (1-4)
     kpiType: 'revenue',
+    kpiDMO: { objectName: '', fieldName: '', filterField: '', filterOperator: 'equals', filterValue: '' },
+    showAdvanced: false,
     adstockDecay: 'geometric',
     maxLag: 8,
     hillBeforeAdstock: false,

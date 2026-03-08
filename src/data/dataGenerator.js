@@ -166,16 +166,6 @@ export function generateSyntheticData(profile, lookbackYears = null) {
   const smsOpenRate = 0.92 + rng() * 0.06;
 
   const firstPartyData = {
-    crmSegments: [
-      { name: 'High-Value Customers', size: 125000, avgLTV: 2400 },
-      { name: 'At-Risk Churners', size: 45000, avgLTV: 800 },
-      { name: 'New Prospects', size: 310000, avgLTV: 350 },
-      { name: 'Loyal Repeat Buyers', size: 89000, avgLTV: 1800 },
-    ],
-    engagementScores: { avgScore: 72, distribution: [
-      { range: '0-20', pct: 8 }, { range: '21-40', pct: 15 }, { range: '41-60', pct: 25 },
-      { range: '61-80', pct: 32 }, { range: '81-100', pct: 20 },
-    ]},
     conversionPaths: { avgTouchpoints: 4.2, topPaths: [
       { path: 'Google Ads > Meta Ads > Email > Purchase', pct: 18 },
       { path: 'TikTok Ads > Google Ads > Purchase', pct: 14 },
@@ -399,17 +389,6 @@ export function generateModelResults(data, config) {
 
   const firstPartyEnrichment = config.connectFirstParty ? {
     uplift: parseFloat((0.12 + rng() * 0.08).toFixed(2)),
-    segmentContributions: [
-      { segment: 'High-Value Customers', contribution: 0.34 },
-      { segment: 'Loyal Repeat Buyers', contribution: 0.28 },
-      { segment: 'New Prospects', contribution: 0.24 },
-      { segment: 'At-Risk Churners', contribution: 0.14 },
-    ],
-    channelAffinities: channels.slice(0, 5).map((ch) => ({
-      channel: ch.name,
-      highValue: (0.5 + rng() * 0.5).toFixed(2),
-      newProspect: (0.3 + rng() * 0.5).toFixed(2),
-    })),
   } : null;
 
   return {
