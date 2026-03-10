@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { BarChart3, Database, Settings, LayoutDashboard, Home, ChevronRight, Menu, X, Zap } from 'lucide-react';
+import { BarChart3, Database, Settings, LayoutDashboard, Home, ChevronRight, Menu, X, Zap, DollarSign } from 'lucide-react';
 
 const NAV_ITEMS = [
   { key: 'home', label: 'Admin Console', icon: Home },
   { key: 'pipeline', label: 'Data Ingestion', icon: Database },
   { key: 'config', label: 'MI Configuration', icon: Settings },
   { key: 'training', label: 'Model Data Feed', icon: Zap },
+  { key: 'budget', label: 'Budget Optimization', icon: DollarSign },
   { key: 'dashboards', label: 'Dashboards', icon: LayoutDashboard },
 ];
 
@@ -19,6 +20,7 @@ export default function Layout({ children }) {
     if (key === 'pipeline') return true;
     if (key === 'config') return !!state.pipelineData;
     if (key === 'training') return !!state.pipelineData && !!state.validationResults?.canProceed;
+    if (key === 'budget') return !!state.pipelineData && !!state.validationResults?.canProceed;
     if (key === 'dashboards') return state.trainingStatus === 'complete';
     return false;
   };

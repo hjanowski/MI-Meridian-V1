@@ -5,6 +5,7 @@ import PipelinePage from './pages/PipelinePage';
 import ConfigPage from './pages/ConfigPage';
 import TrainingPage from './pages/TrainingPage';
 import DashboardPage from './pages/DashboardPage';
+import BudgetOptimizationPage from './pages/BudgetOptimizationPage';
 
 function AppContent() {
   const { state } = useApp();
@@ -15,6 +16,7 @@ function AppContent() {
       case 'pipeline': return <PipelinePage />;
       case 'config': return <ConfigPage />;
       case 'training': return <TrainingPage />;
+      case 'budget': return <BudgetOptimizationPage />;
       case 'dashboards': return <DashboardPage />;
       default: return <HomePage />;
     }

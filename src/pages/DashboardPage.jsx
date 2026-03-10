@@ -6,9 +6,15 @@ import {
   LineChart, Line, AreaChart, Area, ScatterChart, Scatter, Cell,
   ComposedChart, ReferenceLine,
 } from 'recharts';
-import { Download, FileSpreadsheet, TrendingUp, DollarSign, Target, BarChart3, Layers, Activity } from 'lucide-react';
+import { Download, FileSpreadsheet, TrendingUp, DollarSign, Target, BarChart3, Layers, Activity, Info } from 'lucide-react';
 
 const COLORS = ['#0176d3', '#2e844a', '#fe9339', '#ba0517', '#9050e9', '#04844b', '#3296ed', '#fcc003', '#7b8b8e'];
+
+const SEASONALITY_INDEX = {
+  Jan: 0.78, Feb: 0.82, Mar: 0.95, Apr: 0.98, May: 1.05, Jun: 1.10,
+  Jul: 0.92, Aug: 0.88, Sep: 1.08, Oct: 1.31, Nov: 1.42, Dec: 1.47,
+};
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const TABS = [
   { key: 'overview', label: 'Overview', icon: BarChart3 },
@@ -51,6 +57,25 @@ export default function DashboardPage() {
     dispatch({ type: 'SET_OPTIMIZATION_RESULTS', payload: results });
   };
 
+  // Compute seasonality distribution for export
+  const getSeasonalityDistribution = () => {
+    if (!state.config.budgetOptimization.useSeasonalityIndex) return null;
+    const { budgetPeriod, totalBudget, beginDate } = state.config.budgetOptimization;
+    const startMonth = new Date(beginDate).getMonth();
+    const monthCount = budgetPeriod === 'quarterly' ? 3 : 12;
+    const months = [];
+    for (let i = 0; i < monthCount; i++) {
+      const idx = (startMonth + i) % 12;
+      months.push({ name: MONTH_NAMES[idx], index: SEASONALITY_INDEX[MONTH_NAMES[idx]] });
+    }
+    const sumIndices = months.reduce((s, m) => s + m.index, 0);
+    return months.map(m => ({
+      ...m,
+      budget: (totalBudget / sumIndices) * m.index,
+      pct: (m.index / sumIndices) * 100,
+    }));
+  };
+
   const exportToSheets = () => {
     if (!optResults) return;
     const headers = ['Channel', 'Current Spend', 'Optimized Spend', 'Change %', 'Current Revenue', 'Optimized Revenue', 'ROI', 'mROI'];
@@ -65,7 +90,32 @@ export default function DashboardPage() {
       ['Optimized ROI', optResults.optimizedROI],
       ['Revenue Uplift', optResults.uplift + '%'],
     ];
-    const csv = [headers, ...rows, ...summary].map((r) => r.join(',')).join('\n');
+
+    // Add seasonality timeline distribution if enabled
+    let seasonalitySection = [];
+    const budgetDist = getSeasonalityDistribution();
+    if (budgetDist) {
+      seasonalitySection = [
+        [], ['SEASONALITY INDEX BUDGET DISTRIBUTION'],
+        ['Month', 'Seasonality Index', 'Allocation %', 'Monthly Budget'],
+        ...budgetDist.map(m => [
+          m.name, m.index.toFixed(2), m.pct.toFixed(1) + '%', '$' + Math.round(m.budget).toLocaleString(),
+        ]),
+        [],
+        ['CHANNEL BUDGET BY MONTH (Optimized Spend x Seasonality)'],
+        ['Channel', ...budgetDist.map(m => m.name)],
+        ...optResults.channels.map((c) => [
+          c.channel,
+          ...budgetDist.map(m => {
+            const sumIndices = budgetDist.reduce((s, x) => s + x.index, 0);
+            const channelMonthly = (c.optimizedSpend / sumIndices) * m.index;
+            return '$' + Math.round(channelMonthly).toLocaleString();
+          }),
+        ]),
+      ];
+    }
+
+    const csv = [headers, ...rows, ...summary, ...seasonalitySection].map((r) => r.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

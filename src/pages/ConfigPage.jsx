@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Settings, Database, Info, ArrowRight, ArrowLeft, BarChart3, CloudLightning, CheckCircle, AlertTriangle, Mail, MessageSquare, Smartphone, ChevronDown, ChevronUp, Filter, Globe, Link2, X, Calendar, TrendingUp, Sliders } from 'lucide-react';
+import { Settings, Database, Info, ArrowRight, ArrowLeft, BarChart3, CloudLightning, CheckCircle, AlertTriangle, Mail, MessageSquare, Smartphone, ChevronDown, ChevronUp, Filter, Globe, Link2, X, Sliders } from 'lucide-react';
 
 // ── Sample pipeline data ──
 const API_SOURCES = [
@@ -59,13 +59,6 @@ const RULE_TYPES = [
   { value: 'ends_with', label: 'Ends with' },
   { value: 'contains', label: 'Contains' },
 ];
-
-const SEASONALITY_INDEX = {
-  Jan: 0.78, Feb: 0.82, Mar: 0.95, Apr: 0.98, May: 1.05, Jun: 1.10,
-  Jul: 0.92, Aug: 0.88, Sep: 1.08, Oct: 1.31, Nov: 1.42, Dec: 1.47,
-};
-
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // ── UI helpers ──
 function StatusDot({ active }) {
@@ -175,25 +168,6 @@ export default function ConfigPage() {
   // 1st party
   const fpChannels = config.firstPartyChannels || { email: false, whatsapp: false, sms: false };
   const anyFirstPartySelected = fpChannels.email || fpChannels.whatsapp || fpChannels.sms;
-
-  // Budget seasonality computation
-  const budgetDistribution = useMemo(() => {
-    if (!config.budgetOptimization.useSeasonalityIndex) return null;
-    const { budgetPeriod, totalBudget, beginDate } = config.budgetOptimization;
-    const startMonth = new Date(beginDate).getMonth();
-    const monthCount = budgetPeriod === 'quarterly' ? 3 : 12;
-    const months = [];
-    for (let i = 0; i < monthCount; i++) {
-      const idx = (startMonth + i) % 12;
-      months.push({ name: MONTH_NAMES[idx], index: SEASONALITY_INDEX[MONTH_NAMES[idx]] });
-    }
-    const sumIndices = months.reduce((s, m) => s + m.index, 0);
-    return months.map(m => ({
-      ...m,
-      budget: (totalBudget / sumIndices) * m.index,
-      pct: (m.index / sumIndices) * 100,
-    }));
-  }, [config.budgetOptimization]);
 
   return (
     <div className="animate-slide-in">
@@ -787,134 +761,7 @@ export default function ConfigPage() {
       </Section>
 
       {/* ═══════════════════════════════════════════ */}
-      {/* 4. BUDGET OPTIMIZATION                     */}
-      {/* ═══════════════════════════════════════════ */}
-      <Section icon={BarChart3} color="#fe9339" title="Budget Optimization Settings"
-        badge={
-          <span style={{
-            fontSize: 13, fontWeight: 700, color: '#0176d3',
-            background: '#e5f5fe', padding: '4px 14px', borderRadius: 12,
-          }}>
-            ${config.budgetOptimization.totalBudget.toLocaleString()}
-          </span>
-        }
-      >
-        <div style={{
-          background: '#f8f8f8', borderRadius: 6, padding: 20, marginBottom: 16,
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
-        }}>
-          <div className="slds-form-element" style={{ marginBottom: 0 }}>
-            <label className="slds-form-element__label">Optimization Scenario</label>
-            <select className="slds-select" value={config.budgetOptimization.scenario} onChange={(e) => updateBudget({ scenario: e.target.value })}>
-              <option value="fixed">Fixed Budget — Maximize ROI</option>
-              <option value="flexible_roi">Flexible Budget — Target ROI</option>
-              <option value="flexible_mroi">Flexible Budget — Target Marginal ROI</option>
-            </select>
-          </div>
-          <div className="slds-form-element" style={{ marginBottom: 0 }}>
-            <label className="slds-form-element__label">Total Budget ($)</label>
-            <input className="slds-input" type="number" value={config.budgetOptimization.totalBudget} onChange={(e) => updateBudget({ totalBudget: parseInt(e.target.value) || 0 })} />
-          </div>
-          {config.budgetOptimization.scenario !== 'fixed' && (
-            <div className="slds-form-element" style={{ marginBottom: 0 }}>
-              <label className="slds-form-element__label">Target ROI</label>
-              <input className="slds-input" type="number" step={0.1} value={config.budgetOptimization.targetROI} onChange={(e) => updateBudget({ targetROI: parseFloat(e.target.value) || 1.0 })} />
-            </div>
-          )}
-          <div className="slds-form-element" style={{ marginBottom: 0 }}>
-            <label className="slds-form-element__label">Budget Period</label>
-            <select className="slds-select" value={config.budgetOptimization.budgetPeriod} onChange={(e) => updateBudget({ budgetPeriod: e.target.value })}>
-              <option value="yearly">Yearly</option>
-              <option value="quarterly">Quarterly</option>
-            </select>
-          </div>
-          <div className="slds-form-element" style={{ marginBottom: 0 }}>
-            <label className="slds-form-element__label">Begin Date</label>
-            <input
-              className="slds-input"
-              type="date"
-              value={config.budgetOptimization.beginDate}
-              onChange={(e) => updateBudget({ beginDate: e.target.value })}
-            />
-          </div>
-        </div>
-
-        {/* Seasonality Index Distribution */}
-        <div style={{ background: '#f8f8f8', borderRadius: 6, padding: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div>
-              <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Seasonality Index Budget Distribution</h4>
-              <p style={{ fontSize: 12, color: '#706e6b' }}>
-                Pro-rate budget across months using a Seasonality Index derived from external factors. Index of 1.0 = average efficiency.
-              </p>
-            </div>
-            <label className="slds-checkbox-toggle" style={{ marginBottom: 0 }}>
-              <input type="checkbox" checked={config.budgetOptimization.useSeasonalityIndex} onChange={(e) => updateBudget({ useSeasonalityIndex: e.target.checked })} />
-              <div className="slds-checkbox-toggle__track" />
-              <span className="slds-checkbox-toggle__label">Use Seasonality Index</span>
-            </label>
-          </div>
-
-          {config.budgetOptimization.useSeasonalityIndex && budgetDistribution && (
-            <div>
-              <div className="slds-notify slds-notify_info" style={{ marginBottom: 12 }}>
-                <Info size={16} />
-                <div style={{ fontSize: 12 }}>
-                  Formula: Monthly Budget = (Total Budget) / (Sum of Indices) x (Month&apos;s Index).
-                  Index above 1.0 means marketing spend is more efficient in that period.
-                </div>
-              </div>
-              <table className="slds-table">
-                <thead>
-                  <tr>
-                    <th>Month</th>
-                    <th>Seasonality Index</th>
-                    <th>Allocation %</th>
-                    <th>Monthly Budget</th>
-                    <th style={{ width: 200 }}>Distribution</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {budgetDistribution.map((m, i) => {
-                    const maxIdx = Math.max(...budgetDistribution.map(x => x.index));
-                    return (
-                      <tr key={i}>
-                        <td style={{ fontWeight: 600 }}>{m.name}</td>
-                        <td>
-                          <span style={{
-                            fontWeight: 700,
-                            color: m.index >= 1.0 ? '#2e844a' : '#706e6b',
-                          }}>
-                            {m.index.toFixed(2)}
-                          </span>
-                        </td>
-                        <td>{m.pct.toFixed(1)}%</td>
-                        <td style={{ fontWeight: 600 }}>${Math.round(m.budget).toLocaleString()}</td>
-                        <td>
-                          <div style={{ height: 12, background: '#e5e5e5', borderRadius: 4, overflow: 'hidden' }}>
-                            <div style={{
-                              height: '100%', borderRadius: 4,
-                              width: (m.index / maxIdx * 100) + '%',
-                              background: m.index >= 1.0 ? '#2e844a' : '#0176d3',
-                            }} />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              <div style={{ marginTop: 12, fontSize: 12, color: '#706e6b', textAlign: 'right' }}>
-                Total: <strong>${config.budgetOptimization.totalBudget.toLocaleString()}</strong> &middot;
-                Sum of Indices: <strong>{budgetDistribution.reduce((s, m) => s + m.index, 0).toFixed(2)}</strong>
-              </div>
-            </div>
-          )}
-        </div>
-      </Section>
-
-      {/* ═══════════════════════════════════════════ */}
-      {/* 5. ADVANCED SETTINGS (bottom)              */}
+      {/* 4. ADVANCED SETTINGS (bottom)              */}
       {/* ═══════════════════════════════════════════ */}
       <Section icon={Sliders} color="#706e6b" title="Advanced Settings"
         badge={
