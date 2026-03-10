@@ -8,11 +8,20 @@ const initialState = {
   complianceLevel: null,
   pipelineName: '',
   validationResults: null,
-  lookbackYears: null, // The look-back window selected during data ingestion
+  lookbackYears: null,
   config: {
+    // Data Feed
+    dataFeed: {
+      thirdPartyType: 'api', // 'api' or 'totalconnect'
+      apiSources: {}, // { 'meta_ads': true, 'google_ads': false, ... }
+      apiPipelines: {}, // { 'Meta - Brand US': true, ... }
+      apiRule: { type: '', value: '' }, // { type: 'starts_with', value: 'Meta' }
+      apiExcludes: {}, // { 'Meta - Retargeting EU': true }
+      tcPipelines: {}, // { 'TV - Linear National': true, ... }
+      tcRule: { type: '', value: '' },
+    },
     connectFirstParty: false,
     firstPartyChannels: { email: false, whatsapp: false, sms: false },
-    modelLookbackYears: 3, // The look-back period for model run (1-4)
     kpiType: 'revenue',
     kpiDMO: { objectName: '', fieldName: '', filterField: '', filterOperator: 'equals', filterValue: '' },
     showAdvanced: false,
@@ -34,6 +43,9 @@ const initialState = {
       scenario: 'fixed',
       totalBudget: 10000000,
       targetROI: 1.0,
+      budgetPeriod: 'yearly', // 'quarterly' or 'yearly'
+      beginDate: new Date().toISOString().slice(0, 10),
+      useSeasonalityIndex: false,
       spendConstraintLower: 0.5,
       spendConstraintUpper: 2.0,
     },
@@ -69,6 +81,14 @@ function appReducer(state, action) {
       };
     case 'UPDATE_CONFIG':
       return { ...state, config: { ...state.config, ...action.payload } };
+    case 'UPDATE_DATA_FEED':
+      return {
+        ...state,
+        config: {
+          ...state.config,
+          dataFeed: { ...state.config.dataFeed, ...action.payload },
+        },
+      };
     case 'UPDATE_EXTERNAL_FACTORS':
       return {
         ...state,

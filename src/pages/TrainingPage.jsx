@@ -88,7 +88,7 @@ export default function TrainingPage() {
         </div>
         {!isRunning && !isComplete && (
           <button className="slds-button slds-button_brand" onClick={startTraining}>
-            <Play size={16} /> Start Training
+            <Play size={16} /> Start Data Feed
           </button>
         )}
         {isComplete && (
@@ -144,7 +144,7 @@ export default function TrainingPage() {
             fontFamily: 'monospace', fontSize: 12, lineHeight: 1.8,
           }}>
             {log.length === 0 && (
-              <div style={{ color: '#666' }}>Click &quot;Start Training&quot; to begin MCMC inference...</div>
+              <div style={{ color: '#666' }}>Click &quot;Start Data Feed&quot; to begin MCMC inference...</div>
             )}
             {log.map((entry, i) => (
               <div key={i} style={{

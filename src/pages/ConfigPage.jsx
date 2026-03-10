@@ -1,7 +1,73 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Settings, Database, Info, ArrowRight, ArrowLeft, Clock, Sliders, BarChart3, CloudLightning, CheckCircle, Edit3, AlertTriangle, Mail, MessageSquare, Smartphone, ChevronDown, ChevronUp, Search, Filter } from 'lucide-react';
+import { Settings, Database, Info, ArrowRight, ArrowLeft, BarChart3, CloudLightning, CheckCircle, AlertTriangle, Mail, MessageSquare, Smartphone, ChevronDown, ChevronUp, Filter, Globe, Link2, X, Calendar, TrendingUp, Sliders } from 'lucide-react';
 
+// ── Sample pipeline data ──
+const API_SOURCES = [
+  { key: 'meta_ads', label: 'Meta Ads', color: '#1877F2' },
+  { key: 'google_ads', label: 'Google Ads', color: '#4285F4' },
+  { key: 'tiktok_ads', label: 'TikTok Ads', color: '#000000' },
+  { key: 'linkedin_ads', label: 'LinkedIn Ads', color: '#0A66C2' },
+  { key: 'pinterest_ads', label: 'Pinterest Ads', color: '#E60023' },
+  { key: 'snapchat_ads', label: 'Snapchat Ads', color: '#FFFC00' },
+];
+
+const API_PIPELINES = {
+  meta_ads: [
+    { id: 'meta_brand_us', name: 'Meta - Brand Awareness US', source: 'meta_ads' },
+    { id: 'meta_perf_us', name: 'Meta - Performance US', source: 'meta_ads' },
+    { id: 'meta_retarget_eu', name: 'Meta - Retargeting EU', source: 'meta_ads' },
+    { id: 'meta_video_us', name: 'Meta - Video Views US', source: 'meta_ads' },
+  ],
+  google_ads: [
+    { id: 'gads_search_brand', name: 'Google - Search Brand', source: 'google_ads' },
+    { id: 'gads_search_nb', name: 'Google - Search Non-Brand', source: 'google_ads' },
+    { id: 'gads_display', name: 'Google - Display Prospecting', source: 'google_ads' },
+    { id: 'gads_youtube', name: 'Google - YouTube Brand', source: 'google_ads' },
+    { id: 'gads_pmax', name: 'Google - Performance Max', source: 'google_ads' },
+  ],
+  tiktok_ads: [
+    { id: 'tt_awareness', name: 'TikTok - Awareness US', source: 'tiktok_ads' },
+    { id: 'tt_conversions', name: 'TikTok - Conversions US', source: 'tiktok_ads' },
+  ],
+  linkedin_ads: [
+    { id: 'li_b2b', name: 'LinkedIn - B2B Lead Gen', source: 'linkedin_ads' },
+    { id: 'li_awareness', name: 'LinkedIn - Brand Awareness', source: 'linkedin_ads' },
+  ],
+  pinterest_ads: [
+    { id: 'pin_shop', name: 'Pinterest - Shopping US', source: 'pinterest_ads' },
+  ],
+  snapchat_ads: [
+    { id: 'snap_reach', name: 'Snapchat - Reach Campaign', source: 'snapchat_ads' },
+  ],
+};
+
+const TC_PIPELINES = [
+  { id: 'tv_linear', name: 'TV - Linear National' },
+  { id: 'tv_ctv', name: 'TV - Connected TV' },
+  { id: 'radio_spotify', name: 'Radio - Spotify Audio' },
+  { id: 'radio_iheart', name: 'Radio - iHeart Media' },
+  { id: 'ooh_digital', name: 'OOH - Digital Billboards' },
+  { id: 'ooh_transit', name: 'OOH - Transit Ads' },
+  { id: 'print_magazine', name: 'Print - Magazine Q1' },
+  { id: 'print_newspaper', name: 'Print - Newspaper Inserts' },
+];
+
+const RULE_TYPES = [
+  { value: '', label: 'No rule' },
+  { value: 'starts_with', label: 'Starts with' },
+  { value: 'ends_with', label: 'Ends with' },
+  { value: 'contains', label: 'Contains' },
+];
+
+const SEASONALITY_INDEX = {
+  Jan: 0.78, Feb: 0.82, Mar: 0.95, Apr: 0.98, May: 1.05, Jun: 1.10,
+  Jul: 0.92, Aug: 0.88, Sep: 1.08, Oct: 1.31, Nov: 1.42, Dec: 1.47,
+};
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// ── UI helpers ──
 function StatusDot({ active }) {
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -57,11 +123,24 @@ function getLookbackDateRange(years) {
   };
 }
 
+function applyRule(name, rule) {
+  if (!rule.type || !rule.value) return false;
+  const v = rule.value.toLowerCase();
+  const n = name.toLowerCase();
+  if (rule.type === 'starts_with') return n.startsWith(v);
+  if (rule.type === 'ends_with') return n.endsWith(v);
+  if (rule.type === 'contains') return n.includes(v);
+  return false;
+}
+
+// ── Main Component ──
 export default function ConfigPage() {
   const { state, dispatch } = useApp();
   const { config } = state;
+  const df = config.dataFeed;
 
   const updateConfig = (updates) => dispatch({ type: 'UPDATE_CONFIG', payload: updates });
+  const updateDataFeed = (updates) => dispatch({ type: 'UPDATE_DATA_FEED', payload: updates });
   const updateFactors = (updates) => dispatch({ type: 'UPDATE_EXTERNAL_FACTORS', payload: updates });
   const updateBudget = (updates) => dispatch({ type: 'UPDATE_BUDGET_CONFIG', payload: updates });
   const updateFirstPartyChannels = (updates) => dispatch({ type: 'UPDATE_FIRST_PARTY_CHANNELS', payload: updates });
@@ -69,23 +148,56 @@ export default function ConfigPage() {
   const enabledFactors = Object.values(config.externalFactors).filter(Boolean).length;
   const totalFactors = Object.keys(config.externalFactors).length;
 
-  // Check if model lookback exceeds ingested data
-  const ingestedYears = state.lookbackYears || (state.pipelineData ? Math.round(state.pipelineData.numWeeks / 52) : 0);
-  const modelLookback = config.modelLookbackYears || 3;
-  const insufficientData = modelLookback > ingestedYears;
-  const modelDateRange = getLookbackDateRange(modelLookback);
+  // ── 3rd party pipeline selection helpers ──
+  const allApiPipelines = Object.values(API_PIPELINES).flat();
+  const selectedApiPipelines = allApiPipelines.filter(p => {
+    if (df.apiExcludes[p.id]) return false;
+    if (df.apiPipelines[p.id]) return true;
+    if (df.apiSources[p.source]) return true;
+    if (applyRule(p.name, df.apiRule)) return true;
+    return false;
+  });
 
-  // 1st party channel helpers
+  const selectedTcPipelines = TC_PIPELINES.filter(p => {
+    if (df.tcPipelines[p.id]) return true;
+    if (applyRule(p.name, df.tcRule)) return true;
+    return false;
+  });
+
+  const has3rdPartySelection = df.thirdPartyType === 'api'
+    ? selectedApiPipelines.length > 0
+    : selectedTcPipelines.length > 0;
+
+  // Derive lookback from selected data (simulated: always 3 years for demo)
+  const dataLookbackYears = has3rdPartySelection ? 3 : 0;
+  const dataLookbackRange = getLookbackDateRange(dataLookbackYears);
+
+  // 1st party
   const fpChannels = config.firstPartyChannels || { email: false, whatsapp: false, sms: false };
-  const allFirstPartySelected = fpChannels.email && fpChannels.whatsapp && fpChannels.sms;
   const anyFirstPartySelected = fpChannels.email || fpChannels.whatsapp || fpChannels.sms;
-  const toggleAllFirstParty = (checked) => {
-    updateFirstPartyChannels({ email: checked, whatsapp: checked, sms: checked });
-  };
+
+  // Budget seasonality computation
+  const budgetDistribution = useMemo(() => {
+    if (!config.budgetOptimization.useSeasonalityIndex) return null;
+    const { budgetPeriod, totalBudget, beginDate } = config.budgetOptimization;
+    const startMonth = new Date(beginDate).getMonth();
+    const monthCount = budgetPeriod === 'quarterly' ? 3 : 12;
+    const months = [];
+    for (let i = 0; i < monthCount; i++) {
+      const idx = (startMonth + i) % 12;
+      months.push({ name: MONTH_NAMES[idx], index: SEASONALITY_INDEX[MONTH_NAMES[idx]] });
+    }
+    const sumIndices = months.reduce((s, m) => s + m.index, 0);
+    return months.map(m => ({
+      ...m,
+      budget: (totalBudget / sumIndices) * m.index,
+      pct: (m.index / sumIndices) * 100,
+    }));
+  }, [config.budgetOptimization]);
 
   return (
     <div className="animate-slide-in">
-      {/* Page header with actions */}
+      {/* Page header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         marginBottom: 20,
@@ -93,7 +205,7 @@ export default function ConfigPage() {
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: '#181818' }}>MI Configuration</h1>
           <p style={{ fontSize: 13, color: '#706e6b', marginTop: 2 }}>
-            Configure Meridian MMM parameters, connect data sources, and set external factors
+            Configure data feeds, KPI, external factors, and budget optimization
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -102,7 +214,7 @@ export default function ConfigPage() {
           </button>
           <button
             className="slds-button slds-button_brand"
-            disabled={!state.validationResults?.canProceed || insufficientData}
+            disabled={!state.validationResults?.canProceed}
             onClick={() => dispatch({ type: 'SET_STEP', payload: 'training' })}
           >
             Proceed to Model Data Feed <ArrowRight size={14} />
@@ -118,16 +230,16 @@ export default function ConfigPage() {
       }}>
         {[
           { label: 'Name', value: state.pipelineName || 'MI Configuration' },
-          { label: '1st Party Data', value: config.connectFirstParty ? 'Connected' : 'Disconnected' },
-          { label: 'Model Period', value: modelLookback + ' Year' + (modelLookback > 1 ? 's' : '') },
+          { label: '3rd Party Feeds', value: has3rdPartySelection ? `${df.thirdPartyType === 'api' ? selectedApiPipelines.length : selectedTcPipelines.length} pipelines` : 'None' },
+          { label: '1st Party Data', value: config.connectFirstParty && anyFirstPartySelected ? 'Connected' : 'Disconnected' },
+          { label: 'Data History', value: dataLookbackYears > 0 ? `${dataLookbackYears} Years` : 'N/A' },
           { label: 'KPI Type', value: config.kpiType === 'revenue' ? 'Revenue' : 'Conversions' },
-          { label: 'DMO Source', value: config.kpiDMO?.objectName ? config.kpiDMO.objectName.replace('__dlm', '') : 'Not Set' },
           { label: 'External Factors', value: `${enabledFactors}/${totalFactors} enabled` },
           { label: 'Budget', value: '$' + config.budgetOptimization.totalBudget.toLocaleString() },
-          { label: 'Status', value: insufficientData ? 'Insufficient Data' : state.validationResults?.canProceed ? 'Ready' : 'Pending' },
+          { label: 'Status', value: state.validationResults?.canProceed ? 'Ready' : 'Pending' },
         ].map((item, i, arr) => (
           <div key={i} style={{
-            display: 'flex', flexDirection: 'column', padding: '0 20px',
+            display: 'flex', flexDirection: 'column', padding: '0 16px',
             borderRight: i < arr.length - 1 ? '1px solid #e5e5e5' : 'none',
           }}>
             <span style={{ fontSize: 11, color: '#706e6b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
@@ -136,7 +248,6 @@ export default function ConfigPage() {
             <span style={{
               fontSize: 13, fontWeight: 600, color: '#181818', marginTop: 2,
               ...(item.label === 'Status' && item.value === 'Ready' ? { color: '#2e844a' } : {}),
-              ...(item.label === 'Status' && item.value === 'Insufficient Data' ? { color: '#ea001e' } : {}),
               ...(item.label === '1st Party Data' && item.value === 'Connected' ? { color: '#2e844a' } : {}),
             }}>
               {item.value}
@@ -145,185 +256,315 @@ export default function ConfigPage() {
         ))}
       </div>
 
-      {/* Model Look-back Period Selection */}
-      <Section icon={Clock} color="#0176d3" title="Model Look-back Period"
+      {/* ═══════════════════════════════════════════ */}
+      {/* 1. DATA FEED SECTION                       */}
+      {/* ═══════════════════════════════════════════ */}
+      <Section icon={Database} color="#0176d3" title="Data Feed"
         badge={
           <span style={{
             fontSize: 12, fontWeight: 600,
-            color: insufficientData ? '#ea001e' : '#2e844a',
-            background: insufficientData ? '#fef0ef' : '#e6f7ec',
+            color: has3rdPartySelection ? '#2e844a' : '#706e6b',
+            background: has3rdPartySelection ? '#e6f7ec' : '#f3f3f3',
             padding: '4px 12px', borderRadius: 12,
           }}>
-            {insufficientData ? 'Insufficient Data' : modelLookback + ' Year' + (modelLookback > 1 ? 's' : '')}
+            {has3rdPartySelection
+              ? `${(df.thirdPartyType === 'api' ? selectedApiPipelines.length : selectedTcPipelines.length)} pipelines selected`
+              : 'No pipelines selected'}
           </span>
         }
       >
-        <p style={{ fontSize: 13, color: '#706e6b', marginBottom: 16 }}>
-          Select the look-back period for model analysis. This determines how much historical data the model uses.
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
-          {[1, 2, 3, 4].map((years) => {
-            const range = getLookbackDateRange(years);
-            const disabled = years > ingestedYears;
-            return (
-              <div
-                key={years}
-                onClick={() => !disabled && updateConfig({ modelLookbackYears: years })}
-                style={{
-                  border: `2px solid ${modelLookback === years ? '#0176d3' : disabled ? '#e5e5e5' : '#c9c9c9'}`,
-                  borderRadius: 8, padding: 16, cursor: disabled ? 'not-allowed' : 'pointer',
-                  background: modelLookback === years ? '#e5f5fe' : disabled ? '#f8f8f8' : 'white',
-                  opacity: disabled ? 0.6 : 1,
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ fontSize: 22, fontWeight: 700, color: modelLookback === years ? '#0176d3' : disabled ? '#706e6b' : '#181818' }}>
-                  {years} Year{years > 1 ? 's' : ''}
-                </div>
-                <div style={{ fontSize: 11, color: '#706e6b', marginTop: 4 }}>{years * 52} weeks</div>
-                <div style={{ fontSize: 11, color: '#0176d3', marginTop: 4, fontWeight: 500 }}>
-                  {range.from} &ndash; {range.to}
-                </div>
-                {disabled && (
-                  <div style={{ fontSize: 10, color: '#ea001e', marginTop: 6, fontWeight: 600 }}>
-                    Not enough data ingested
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        {insufficientData && (
-          <div className="slds-notify slds-notify_error" style={{ marginTop: 8 }}>
-            <AlertTriangle size={18} />
-            <div>
-              <strong>Insufficient data for {modelLookback}-year look-back</strong>
-              <div style={{ fontSize: 12, marginTop: 4 }}>
-                You have ingested {ingestedYears} year{ingestedYears !== 1 ? 's' : ''} of data, but selected a {modelLookback}-year model period.
-                Please go back to Data Ingestion and ingest at least {modelLookback} year{modelLookback !== 1 ? 's' : ''} of data, or select a shorter look-back period.
-              </div>
-              <button
-                className="slds-button slds-button_neutral"
-                style={{ marginTop: 8 }}
-                onClick={() => dispatch({ type: 'SET_STEP', payload: 'pipeline' })}
-              >
-                <ArrowLeft size={14} /> Go to Data Ingestion
-              </button>
-            </div>
-          </div>
-        )}
-      </Section>
+        {/* ── 3rd Party Data Feed ── */}
+        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>3rd Party Data Feed</h3>
 
-      {/* 1st Party Data */}
-      <Section icon={Database} color="#0176d3" title="1st Party Data"
-        badge={<StatusDot active={config.connectFirstParty} />}
-      >
-        <div className="slds-notify slds-notify_info" style={{ marginBottom: 16 }}>
-          <Info size={16} />
-          <div style={{ fontSize: 12 }}>
-            Connect to 1st Party Data to enrich your MMM analysis with direct channel engagement data. This data captures the effort and influence of owned channels. All 1st party data is consolidated as &apos;Organic&apos; in the model.
-          </div>
+        {/* Feed type tabs */}
+        <div style={{ display: 'flex', gap: 0, marginBottom: 16 }}>
+          {[
+            { key: 'api', label: 'API Based', icon: Globe },
+            { key: 'totalconnect', label: 'Total Connect', icon: Link2 },
+          ].map(t => (
+            <button
+              key={t.key}
+              onClick={() => updateDataFeed({ thirdPartyType: t.key })}
+              style={{
+                padding: '10px 24px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                border: '1px solid #e5e5e5',
+                borderBottom: df.thirdPartyType === t.key ? '2px solid #0176d3' : '1px solid #e5e5e5',
+                background: df.thirdPartyType === t.key ? '#e5f5fe' : 'white',
+                color: df.thirdPartyType === t.key ? '#0176d3' : '#706e6b',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              <t.icon size={14} /> {t.label}
+            </button>
+          ))}
         </div>
-        <label className="slds-checkbox-toggle">
-          <input type="checkbox" checked={config.connectFirstParty} onChange={(e) => updateConfig({ connectFirstParty: e.target.checked })} />
-          <div className="slds-checkbox-toggle__track" />
-          <span className="slds-checkbox-toggle__label">Connect to 1st Party Data</span>
-        </label>
-        {config.connectFirstParty && (
-          <div style={{ marginTop: 16 }}>
-            {/* Channel selection */}
-            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Select 1st Party Channels</h3>
-            <div style={{ marginBottom: 16 }}>
-              <label className="slds-checkbox-toggle" style={{ marginBottom: 12 }}>
-                <input type="checkbox" checked={allFirstPartySelected} onChange={(e) => toggleAllFirstParty(e.target.checked)} />
-                <div className="slds-checkbox-toggle__track" />
-                <span className="slds-checkbox-toggle__label">Select All Channels</span>
-              </label>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
-              {[
-                { key: 'email', label: 'Email', icon: Mail, color: '#0176d3' },
-                { key: 'whatsapp', label: 'WhatsApp', icon: MessageSquare, color: '#25D366' },
-                { key: 'sms', label: 'SMS', icon: Smartphone, color: '#fe9339' },
-              ].map((ch) => (
+
+        {/* ── API Based ── */}
+        {df.thirdPartyType === 'api' && (
+          <div style={{ background: '#f8f8f8', borderRadius: 8, padding: 20, marginBottom: 16 }}>
+            {/* Select by Source */}
+            <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Select by Source</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
+              {API_SOURCES.map(src => (
                 <div
-                  key={ch.key}
-                  onClick={() => updateFirstPartyChannels({ [ch.key]: !fpChannels[ch.key] })}
+                  key={src.key}
+                  onClick={() => updateDataFeed({ apiSources: { ...df.apiSources, [src.key]: !df.apiSources[src.key] } })}
                   style={{
-                    border: `2px solid ${fpChannels[ch.key] ? ch.color : '#e5e5e5'}`,
-                    borderRadius: 8, padding: 16, cursor: 'pointer',
-                    background: fpChannels[ch.key] ? ch.color + '10' : 'white',
-                    textAlign: 'center',
+                    border: `2px solid ${df.apiSources[src.key] ? src.color : '#e5e5e5'}`,
+                    borderRadius: 8, padding: '12px 16px', cursor: 'pointer',
+                    background: df.apiSources[src.key] ? src.color + '10' : 'white',
+                    display: 'flex', alignItems: 'center', gap: 10,
                   }}
                 >
-                  <ch.icon size={24} color={fpChannels[ch.key] ? ch.color : '#706e6b'} style={{ marginBottom: 8 }} />
-                  <div style={{ fontSize: 14, fontWeight: 700, color: fpChannels[ch.key] ? '#181818' : '#706e6b' }}>{ch.label}</div>
-                  <div style={{ fontSize: 11, color: '#706e6b', marginTop: 4 }}>
-                    {fpChannels[ch.key] ? 'Selected' : 'Click to select'}
-                  </div>
+                  <div style={{
+                    width: 10, height: 10, borderRadius: '50%',
+                    background: df.apiSources[src.key] ? src.color : '#c9c9c9',
+                  }} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: df.apiSources[src.key] ? '#181818' : '#706e6b' }}>
+                    {src.label}
+                  </span>
                 </div>
               ))}
             </div>
 
-            {/* Channel stats based on look-back window */}
-            {anyFirstPartySelected && state.pipelineData?.firstPartyData?.firstPartyChannels && (
-              <div>
-                <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
-                  Channel Activity ({modelLookback} Year{modelLookback > 1 ? 's' : ''} Look-back)
-                </h3>
-                <table className="slds-table">
-                  <thead>
-                    <tr><th>Channel</th><th>Total Sent</th><th>Total Opened</th><th>Open Rate</th></tr>
-                  </thead>
-                  <tbody>
-                    {fpChannels.email && state.pipelineData.firstPartyData.firstPartyChannels.email && (() => {
-                      const d = state.pipelineData.firstPartyData.firstPartyChannels.email;
-                      const scale = (modelLookback * 52) / state.pipelineData.numWeeks;
-                      return (
-                        <tr>
-                          <td style={{ fontWeight: 600 }}><Mail size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Email</td>
-                          <td>{Math.round(d.totalSent * scale).toLocaleString()}</td>
-                          <td>{Math.round(d.totalOpened * scale).toLocaleString()}</td>
-                          <td>{(d.openRate * 100).toFixed(1)}%</td>
-                        </tr>
-                      );
-                    })()}
-                    {fpChannels.whatsapp && state.pipelineData.firstPartyData.firstPartyChannels.whatsapp && (() => {
-                      const d = state.pipelineData.firstPartyData.firstPartyChannels.whatsapp;
-                      const scale = (modelLookback * 52) / state.pipelineData.numWeeks;
-                      return (
-                        <tr>
-                          <td style={{ fontWeight: 600 }}><MessageSquare size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />WhatsApp</td>
-                          <td>{Math.round(d.totalSent * scale).toLocaleString()}</td>
-                          <td>{Math.round(d.totalOpened * scale).toLocaleString()}</td>
-                          <td>{(d.openRate * 100).toFixed(1)}%</td>
-                        </tr>
-                      );
-                    })()}
-                    {fpChannels.sms && state.pipelineData.firstPartyData.firstPartyChannels.sms && (() => {
-                      const d = state.pipelineData.firstPartyData.firstPartyChannels.sms;
-                      const scale = (modelLookback * 52) / state.pipelineData.numWeeks;
-                      return (
-                        <tr>
-                          <td style={{ fontWeight: 600 }}><Smartphone size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />SMS</td>
-                          <td>{Math.round(d.totalSent * scale).toLocaleString()}</td>
-                          <td>{Math.round(d.totalOpened * scale).toLocaleString()}</td>
-                          <td>{(d.openRate * 100).toFixed(1)}%</td>
-                        </tr>
-                      );
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {/* Individual Pipeline Selection */}
+            <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Individual Pipeline Selection</h4>
+            <div style={{
+              background: 'white', border: '1px solid #e5e5e5', borderRadius: 6,
+              maxHeight: 200, overflowY: 'auto', marginBottom: 20,
+            }}>
+              {allApiPipelines.map(p => {
+                const srcLabel = API_SOURCES.find(s => s.key === p.source)?.label || '';
+                const isSelected = df.apiPipelines[p.id] || df.apiSources[p.source] || applyRule(p.name, df.apiRule);
+                const isExcluded = df.apiExcludes[p.id];
+                return (
+                  <div
+                    key={p.id}
+                    style={{
+                      display: 'flex', alignItems: 'center', padding: '8px 14px',
+                      borderBottom: '1px solid #f3f3f3',
+                      background: isExcluded ? '#fef0ef' : isSelected ? '#e5f5fe' : 'white',
+                    }}
+                  >
+                    <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                      <input
+                        type="checkbox"
+                        checked={!!df.apiPipelines[p.id]}
+                        onChange={(e) => updateDataFeed({ apiPipelines: { ...df.apiPipelines, [p.id]: e.target.checked } })}
+                      />
+                      <span style={{ fontWeight: 600 }}>{p.name}</span>
+                      <span style={{ fontSize: 11, color: '#706e6b' }}>({srcLabel})</span>
+                    </label>
+                    {(isSelected || df.apiSources[p.source]) && !isExcluded && (
+                      <span style={{ fontSize: 10, fontWeight: 600, color: '#2e844a', background: '#e6f7ec', padding: '2px 8px', borderRadius: 8 }}>
+                        Selected
+                      </span>
+                    )}
+                    {isExcluded && (
+                      <span style={{ fontSize: 10, fontWeight: 600, color: '#ea001e', background: '#fef0ef', padding: '2px 8px', borderRadius: 8 }}>
+                        Excluded
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
 
+            {/* Global Rule */}
+            <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Global Rule</h4>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+              <select
+                className="slds-select"
+                style={{ width: 180 }}
+                value={df.apiRule.type}
+                onChange={(e) => updateDataFeed({ apiRule: { ...df.apiRule, type: e.target.value } })}
+              >
+                {RULE_TYPES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </select>
+              <input
+                className="slds-input"
+                placeholder="e.g. Brand"
+                value={df.apiRule.value}
+                onChange={(e) => updateDataFeed({ apiRule: { ...df.apiRule, value: e.target.value } })}
+                disabled={!df.apiRule.type}
+              />
+            </div>
+
+            {/* Exclude */}
+            <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Exclude Pipelines</h4>
+            <div style={{
+              background: 'white', border: '1px solid #e5e5e5', borderRadius: 6,
+              maxHeight: 160, overflowY: 'auto',
+            }}>
+              {allApiPipelines.map(p => (
+                <div
+                  key={p.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', padding: '6px 14px',
+                    borderBottom: '1px solid #f3f3f3',
+                    background: df.apiExcludes[p.id] ? '#fef0ef' : 'white',
+                  }}
+                >
+                  <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, color: '#706e6b' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!df.apiExcludes[p.id]}
+                      onChange={(e) => updateDataFeed({ apiExcludes: { ...df.apiExcludes, [p.id]: e.target.checked } })}
+                    />
+                    {p.name}
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
         )}
+
+        {/* ── Total Connect ── */}
+        {df.thirdPartyType === 'totalconnect' && (
+          <div style={{ background: '#f8f8f8', borderRadius: 8, padding: 20, marginBottom: 16 }}>
+            {/* Individual Pipeline Selection */}
+            <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Individual Pipeline Selection</h4>
+            <div style={{
+              background: 'white', border: '1px solid #e5e5e5', borderRadius: 6,
+              maxHeight: 240, overflowY: 'auto', marginBottom: 20,
+            }}>
+              {TC_PIPELINES.map(p => {
+                const isSelected = df.tcPipelines[p.id] || applyRule(p.name, df.tcRule);
+                return (
+                  <div
+                    key={p.id}
+                    style={{
+                      display: 'flex', alignItems: 'center', padding: '8px 14px',
+                      borderBottom: '1px solid #f3f3f3',
+                      background: isSelected ? '#e5f5fe' : 'white',
+                    }}
+                  >
+                    <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                      <input
+                        type="checkbox"
+                        checked={!!df.tcPipelines[p.id]}
+                        onChange={(e) => updateDataFeed({ tcPipelines: { ...df.tcPipelines, [p.id]: e.target.checked } })}
+                      />
+                      <span style={{ fontWeight: 600 }}>{p.name}</span>
+                    </label>
+                    {isSelected && (
+                      <span style={{ fontSize: 10, fontWeight: 600, color: '#2e844a', background: '#e6f7ec', padding: '2px 8px', borderRadius: 8 }}>
+                        Selected
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Global Rule */}
+            <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Global Rule</h4>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <select
+                className="slds-select"
+                style={{ width: 180 }}
+                value={df.tcRule.type}
+                onChange={(e) => updateDataFeed({ tcRule: { ...df.tcRule, type: e.target.value } })}
+              >
+                {RULE_TYPES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </select>
+              <input
+                className="slds-input"
+                placeholder="e.g. TV"
+                value={df.tcRule.value}
+                onChange={(e) => updateDataFeed({ tcRule: { ...df.tcRule, value: e.target.value } })}
+                disabled={!df.tcRule.type}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ── Data History (Lookback Window) ── */}
+        {has3rdPartySelection && (
+          <div style={{
+            background: '#e6f7ec', border: '1px solid #2e844a', borderRadius: 8, padding: 16, marginBottom: 20,
+            display: 'flex', alignItems: 'center', gap: 12,
+          }}>
+            <CheckCircle size={20} color="#2e844a" />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#2e844a' }}>Historic Data Available</div>
+              <div style={{ fontSize: 12, color: '#706e6b', marginTop: 4 }}>
+                Data range: <strong>{dataLookbackRange.from}</strong> &ndash; <strong>{dataLookbackRange.to}</strong>
+                &nbsp;&middot;&nbsp; {dataLookbackYears * 52} weeks of 3rd party data available.
+              </div>
+            </div>
+            <span style={{
+              fontSize: 12, fontWeight: 600, color: '#2e844a',
+              background: 'white', padding: '4px 12px', borderRadius: 12,
+            }}>
+              {dataLookbackYears} Year{dataLookbackYears > 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+
+        {/* ── 1st Party Data (Organic) ── */}
+        <div style={{ borderTop: '1px solid #e5e5e5', paddingTop: 20, marginTop: 4 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>1st Party Data (Organic)</h3>
+          <div className="slds-notify slds-notify_info" style={{ marginBottom: 12 }}>
+            <Info size={16} />
+            <div style={{ fontSize: 12 }}>
+              Marketing Cloud data sources. All 1st party data is consolidated as &apos;Organic&apos; in the model.
+            </div>
+          </div>
+          <label className="slds-checkbox-toggle" style={{ marginBottom: 12 }}>
+            <input type="checkbox" checked={config.connectFirstParty} onChange={(e) => updateConfig({ connectFirstParty: e.target.checked })} />
+            <div className="slds-checkbox-toggle__track" />
+            <span className="slds-checkbox-toggle__label">Connect 1st Party Data</span>
+          </label>
+
+          {config.connectFirstParty && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
+                {[
+                  { key: 'email', label: 'Email', icon: Mail, color: '#0176d3' },
+                  { key: 'whatsapp', label: 'WhatsApp', icon: MessageSquare, color: '#25D366' },
+                  { key: 'sms', label: 'SMS', icon: Smartphone, color: '#fe9339' },
+                ].map((ch) => (
+                  <div
+                    key={ch.key}
+                    onClick={() => updateFirstPartyChannels({ [ch.key]: !fpChannels[ch.key] })}
+                    style={{
+                      border: `2px solid ${fpChannels[ch.key] ? ch.color : '#e5e5e5'}`,
+                      borderRadius: 8, padding: 16, cursor: 'pointer',
+                      background: fpChannels[ch.key] ? ch.color + '10' : 'white',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <ch.icon size={24} color={fpChannels[ch.key] ? ch.color : '#706e6b'} style={{ marginBottom: 8 }} />
+                    <div style={{ fontSize: 14, fontWeight: 700, color: fpChannels[ch.key] ? '#181818' : '#706e6b' }}>{ch.label}</div>
+                    <div style={{ fontSize: 11, color: '#706e6b', marginTop: 4 }}>
+                      {fpChannels[ch.key] ? 'Selected' : 'Click to select'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Show matching history for 1st party */}
+              {anyFirstPartySelected && has3rdPartySelection && (
+                <div style={{
+                  background: '#e6f7ec', border: '1px solid #2e844a', borderRadius: 8, padding: 12,
+                  display: 'flex', alignItems: 'center', gap: 10,
+                }}>
+                  <CheckCircle size={16} color="#2e844a" />
+                  <div style={{ fontSize: 12, color: '#2e844a', fontWeight: 600 }}>
+                    1st party data history matches 3rd party data range ({dataLookbackRange.from} &ndash; {dataLookbackRange.to})
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </Section>
 
-      {/* KPI Configuration */}
+      {/* ═══════════════════════════════════════════ */}
+      {/* 2. KPI CONFIGURATION                       */}
+      {/* ═══════════════════════════════════════════ */}
       <Section icon={BarChart3} color="#0176d3" title="KPI Configuration">
-        {/* KPI Type selection */}
         <p style={{ fontSize: 13, color: '#706e6b', marginBottom: 16 }}>
           Select the KPI metric to model. Then configure the Data Cloud data source for this metric.
         </p>
@@ -350,14 +591,12 @@ export default function ConfigPage() {
         </div>
 
         {/* DMO Configuration */}
-        <div style={{
-          background: '#f8f8f8', borderRadius: 8, padding: 20, marginBottom: 16,
-        }}>
+        <div style={{ background: '#f8f8f8', borderRadius: 8, padding: 20, marginBottom: 16 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
             Data Cloud Source for {config.kpiType === 'revenue' ? 'Revenue' : 'Conversions'}
           </h3>
           <p style={{ fontSize: 12, color: '#706e6b', marginBottom: 16 }}>
-            Configure the Data Model Object (DMO), field, and optional filters from your mapped Data Cloud objects.
+            Configure the Data Model Object (DMO), field, and optional filters.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
@@ -366,9 +605,7 @@ export default function ConfigPage() {
               <select
                 className="slds-select"
                 value={config.kpiDMO?.objectName || ''}
-                onChange={(e) => updateConfig({
-                  kpiDMO: { ...config.kpiDMO, objectName: e.target.value },
-                })}
+                onChange={(e) => updateConfig({ kpiDMO: { ...config.kpiDMO, objectName: e.target.value } })}
               >
                 <option value="">-- Select a DMO --</option>
                 {config.kpiType === 'revenue' ? (
@@ -389,7 +626,6 @@ export default function ConfigPage() {
                   </>
                 )}
               </select>
-              <div className="slds-form-element__help">The primary object containing your {config.kpiType === 'revenue' ? 'revenue' : 'conversion'} data.</div>
             </div>
             <div className="slds-form-element" style={{ marginBottom: 0 }}>
               <label className="slds-form-element__label" style={{ fontWeight: 600 }}>
@@ -398,9 +634,7 @@ export default function ConfigPage() {
               <select
                 className="slds-select"
                 value={config.kpiDMO?.fieldName || ''}
-                onChange={(e) => updateConfig({
-                  kpiDMO: { ...config.kpiDMO, fieldName: e.target.value },
-                })}
+                onChange={(e) => updateConfig({ kpiDMO: { ...config.kpiDMO, fieldName: e.target.value } })}
               >
                 <option value="">-- Select a field --</option>
                 {config.kpiType === 'revenue' ? (
@@ -419,7 +653,6 @@ export default function ConfigPage() {
                   </>
                 )}
               </select>
-              <div className="slds-form-element__help">The field to aggregate as the KPI metric.</div>
             </div>
           </div>
 
@@ -437,9 +670,7 @@ export default function ConfigPage() {
                 <select
                   className="slds-select"
                   value={config.kpiDMO?.filterField || ''}
-                  onChange={(e) => updateConfig({
-                    kpiDMO: { ...config.kpiDMO, filterField: e.target.value },
-                  })}
+                  onChange={(e) => updateConfig({ kpiDMO: { ...config.kpiDMO, filterField: e.target.value } })}
                 >
                   <option value="">None</option>
                   <option value="Status__c">Status</option>
@@ -453,9 +684,7 @@ export default function ConfigPage() {
                 <select
                   className="slds-select"
                   value={config.kpiDMO?.filterOperator || 'equals'}
-                  onChange={(e) => updateConfig({
-                    kpiDMO: { ...config.kpiDMO, filterOperator: e.target.value },
-                  })}
+                  onChange={(e) => updateConfig({ kpiDMO: { ...config.kpiDMO, filterOperator: e.target.value } })}
                 >
                   <option value="equals">Equals</option>
                   <option value="not_equals">Not Equals</option>
@@ -470,33 +699,31 @@ export default function ConfigPage() {
                   type="text"
                   placeholder="e.g. Closed Won"
                   value={config.kpiDMO?.filterValue || ''}
-                  onChange={(e) => updateConfig({
-                    kpiDMO: { ...config.kpiDMO, filterValue: e.target.value },
-                  })}
+                  onChange={(e) => updateConfig({ kpiDMO: { ...config.kpiDMO, filterValue: e.target.value } })}
                 />
               </div>
             </div>
           </div>
 
-          {/* Date Range Availability */}
-          {config.kpiDMO?.objectName && config.kpiDMO?.fieldName && (
+          {/* Data availability — matching lookback window */}
+          {config.kpiDMO?.objectName && config.kpiDMO?.fieldName && has3rdPartySelection && (
             <div style={{
               background: '#e6f7ec', border: '1px solid #2e844a', borderRadius: 8, padding: 16,
               display: 'flex', alignItems: 'center', gap: 12,
             }}>
               <CheckCircle size={20} color="#2e844a" />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#2e844a' }}>Sufficient Data Available</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#2e844a' }}>KPI Data Matches Data Feed History</div>
                 <div style={{ fontSize: 12, color: '#706e6b', marginTop: 4 }}>
-                  Data range: <strong>{modelDateRange.from}</strong> &ndash; <strong>{modelDateRange.to}</strong>
-                  &nbsp;&middot;&nbsp; {modelLookback * 52} weeks of {config.kpiType === 'revenue' ? 'revenue' : 'conversion'} data matches the paid media date range.
+                  KPI data range: <strong>{dataLookbackRange.from}</strong> &ndash; <strong>{dataLookbackRange.to}</strong>
+                  &nbsp;&middot;&nbsp; {dataLookbackYears * 52} weeks of {config.kpiType === 'revenue' ? 'revenue' : 'conversion'} data matches the data feed look-back window.
                 </div>
               </div>
               <span style={{
                 fontSize: 12, fontWeight: 600, color: '#2e844a',
                 background: 'white', padding: '4px 12px', borderRadius: 12,
               }}>
-                {modelLookback * 52} weeks
+                {dataLookbackYears * 52} weeks
               </span>
             </div>
           )}
@@ -507,9 +734,9 @@ export default function ConfigPage() {
             }}>
               <AlertTriangle size={20} color="#ea001e" />
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#ea001e' }}>Insufficient Data Available</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#ea001e' }}>Select a Field</div>
                 <div style={{ fontSize: 12, color: '#706e6b', marginTop: 4 }}>
-                  Please select a field to check data availability.
+                  Please select a field to check data availability against the data feed look-back window.
                 </div>
               </div>
             </div>
@@ -517,21 +744,192 @@ export default function ConfigPage() {
         </div>
       </Section>
 
-      {/* Model Settings (simplified) */}
-      <Section icon={Settings} color="#0176d3" title="Model Settings"
+      {/* ═══════════════════════════════════════════ */}
+      {/* 3. EXTERNAL FACTORS & CONTROLS             */}
+      {/* ═══════════════════════════════════════════ */}
+      <Section icon={CloudLightning} color="#fe9339" title="External Factors, Seasonality & Controls"
+        badge={
+          <span style={{
+            fontSize: 12, fontWeight: 600, color: enabledFactors > 0 ? '#2e844a' : '#706e6b',
+            background: enabledFactors > 0 ? '#e6f7ec' : '#f3f3f3',
+            padding: '4px 12px', borderRadius: 12,
+          }}>
+            {enabledFactors}/{totalFactors} enabled
+          </span>
+        }
+      >
+        <table className="slds-table" style={{ marginBottom: 0 }}>
+          <thead>
+            <tr><th>Factor</th><th>Description</th><th style={{ width: 80, textAlign: 'center' }}>Status</th></tr>
+          </thead>
+          <tbody>
+            {[
+              { key: 'seasonality', label: 'Seasonality', desc: 'Auto-captured by time-varying intercept (knots). Configure knots in Advanced Settings.' },
+              { key: 'holidays', label: 'Holiday Effects', desc: 'Black Friday, Christmas, etc. as dummy variables' },
+              { key: 'gqv', label: 'Google Query Volume (GQV)', desc: 'Organic search demand via MMM Data Platform' },
+              { key: 'competitorActivity', label: 'Competitor Activity', desc: 'Competitor spend/promotions as control variables' },
+              { key: 'macroEconomic', label: 'Macroeconomic Indicators', desc: 'CPI, unemployment rate, consumer confidence' },
+              { key: 'weather', label: 'Weather Data', desc: 'Temperature, precipitation by geo region' },
+            ].map((f) => (
+              <tr key={f.key}>
+                <td style={{ fontWeight: 600 }}>{f.label}</td>
+                <td style={{ color: '#706e6b', fontSize: 12 }}>{f.desc}</td>
+                <td style={{ textAlign: 'center' }}>
+                  <label className="slds-checkbox-toggle" style={{ marginBottom: 0, justifyContent: 'center' }}>
+                    <input type="checkbox" checked={config.externalFactors[f.key]} onChange={(e) => updateFactors({ [f.key]: e.target.checked })} />
+                    <div className="slds-checkbox-toggle__track" />
+                  </label>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Section>
+
+      {/* ═══════════════════════════════════════════ */}
+      {/* 4. BUDGET OPTIMIZATION                     */}
+      {/* ═══════════════════════════════════════════ */}
+      <Section icon={BarChart3} color="#fe9339" title="Budget Optimization Settings"
+        badge={
+          <span style={{
+            fontSize: 13, fontWeight: 700, color: '#0176d3',
+            background: '#e5f5fe', padding: '4px 14px', borderRadius: 12,
+          }}>
+            ${config.budgetOptimization.totalBudget.toLocaleString()}
+          </span>
+        }
+      >
+        <div style={{
+          background: '#f8f8f8', borderRadius: 6, padding: 20, marginBottom: 16,
+          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
+        }}>
+          <div className="slds-form-element" style={{ marginBottom: 0 }}>
+            <label className="slds-form-element__label">Optimization Scenario</label>
+            <select className="slds-select" value={config.budgetOptimization.scenario} onChange={(e) => updateBudget({ scenario: e.target.value })}>
+              <option value="fixed">Fixed Budget — Maximize ROI</option>
+              <option value="flexible_roi">Flexible Budget — Target ROI</option>
+              <option value="flexible_mroi">Flexible Budget — Target Marginal ROI</option>
+            </select>
+          </div>
+          <div className="slds-form-element" style={{ marginBottom: 0 }}>
+            <label className="slds-form-element__label">Total Budget ($)</label>
+            <input className="slds-input" type="number" value={config.budgetOptimization.totalBudget} onChange={(e) => updateBudget({ totalBudget: parseInt(e.target.value) || 0 })} />
+          </div>
+          {config.budgetOptimization.scenario !== 'fixed' && (
+            <div className="slds-form-element" style={{ marginBottom: 0 }}>
+              <label className="slds-form-element__label">Target ROI</label>
+              <input className="slds-input" type="number" step={0.1} value={config.budgetOptimization.targetROI} onChange={(e) => updateBudget({ targetROI: parseFloat(e.target.value) || 1.0 })} />
+            </div>
+          )}
+          <div className="slds-form-element" style={{ marginBottom: 0 }}>
+            <label className="slds-form-element__label">Budget Period</label>
+            <select className="slds-select" value={config.budgetOptimization.budgetPeriod} onChange={(e) => updateBudget({ budgetPeriod: e.target.value })}>
+              <option value="yearly">Yearly</option>
+              <option value="quarterly">Quarterly</option>
+            </select>
+          </div>
+          <div className="slds-form-element" style={{ marginBottom: 0 }}>
+            <label className="slds-form-element__label">Begin Date</label>
+            <input
+              className="slds-input"
+              type="date"
+              value={config.budgetOptimization.beginDate}
+              onChange={(e) => updateBudget({ beginDate: e.target.value })}
+            />
+          </div>
+        </div>
+
+        {/* Seasonality Index Distribution */}
+        <div style={{ background: '#f8f8f8', borderRadius: 6, padding: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div>
+              <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Seasonality Index Budget Distribution</h4>
+              <p style={{ fontSize: 12, color: '#706e6b' }}>
+                Pro-rate budget across months using a Seasonality Index derived from external factors. Index of 1.0 = average efficiency.
+              </p>
+            </div>
+            <label className="slds-checkbox-toggle" style={{ marginBottom: 0 }}>
+              <input type="checkbox" checked={config.budgetOptimization.useSeasonalityIndex} onChange={(e) => updateBudget({ useSeasonalityIndex: e.target.checked })} />
+              <div className="slds-checkbox-toggle__track" />
+              <span className="slds-checkbox-toggle__label">Use Seasonality Index</span>
+            </label>
+          </div>
+
+          {config.budgetOptimization.useSeasonalityIndex && budgetDistribution && (
+            <div>
+              <div className="slds-notify slds-notify_info" style={{ marginBottom: 12 }}>
+                <Info size={16} />
+                <div style={{ fontSize: 12 }}>
+                  Formula: Monthly Budget = (Total Budget) / (Sum of Indices) x (Month&apos;s Index).
+                  Index above 1.0 means marketing spend is more efficient in that period.
+                </div>
+              </div>
+              <table className="slds-table">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th>Seasonality Index</th>
+                    <th>Allocation %</th>
+                    <th>Monthly Budget</th>
+                    <th style={{ width: 200 }}>Distribution</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {budgetDistribution.map((m, i) => {
+                    const maxIdx = Math.max(...budgetDistribution.map(x => x.index));
+                    return (
+                      <tr key={i}>
+                        <td style={{ fontWeight: 600 }}>{m.name}</td>
+                        <td>
+                          <span style={{
+                            fontWeight: 700,
+                            color: m.index >= 1.0 ? '#2e844a' : '#706e6b',
+                          }}>
+                            {m.index.toFixed(2)}
+                          </span>
+                        </td>
+                        <td>{m.pct.toFixed(1)}%</td>
+                        <td style={{ fontWeight: 600 }}>${Math.round(m.budget).toLocaleString()}</td>
+                        <td>
+                          <div style={{ height: 12, background: '#e5e5e5', borderRadius: 4, overflow: 'hidden' }}>
+                            <div style={{
+                              height: '100%', borderRadius: 4,
+                              width: (m.index / maxIdx * 100) + '%',
+                              background: m.index >= 1.0 ? '#2e844a' : '#0176d3',
+                            }} />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div style={{ marginTop: 12, fontSize: 12, color: '#706e6b', textAlign: 'right' }}>
+                Total: <strong>${config.budgetOptimization.totalBudget.toLocaleString()}</strong> &middot;
+                Sum of Indices: <strong>{budgetDistribution.reduce((s, m) => s + m.index, 0).toFixed(2)}</strong>
+              </div>
+            </div>
+          )}
+        </div>
+      </Section>
+
+      {/* ═══════════════════════════════════════════ */}
+      {/* 5. ADVANCED SETTINGS (bottom)              */}
+      {/* ═══════════════════════════════════════════ */}
+      <Section icon={Sliders} color="#706e6b" title="Advanced Settings"
         badge={
           <span style={{
             fontSize: 12, fontWeight: 500, color: '#706e6b',
             background: '#f3f3f3', padding: '4px 12px', borderRadius: 12,
           }}>
-            Standard Configuration
+            Expert Configuration
           </span>
         }
       >
         <div className="slds-notify slds-notify_info" style={{ marginBottom: 16 }}>
           <Info size={16} />
           <div style={{ fontSize: 12 }}>
-            Meridian uses standard defaults that work well for most use cases. For expert users, expand Advanced Settings below.
+            These settings use standard defaults that work well for most use cases. Only modify if you have specific modeling requirements.
           </div>
         </div>
 
@@ -555,16 +953,16 @@ export default function ConfigPage() {
           ))}
         </div>
 
-        {/* Advanced Settings Toggle */}
+        {/* Expand/Collapse */}
         <button
-          onClick={() => dispatch({ type: 'UPDATE_CONFIG', payload: { showAdvanced: !config.showAdvanced } })}
+          onClick={() => updateConfig({ showAdvanced: !config.showAdvanced })}
           style={{
             width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             background: '#f8f8f8', border: '1px solid #e5e5e5', borderRadius: 6,
             padding: '12px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#0176d3',
           }}
         >
-          <span>Advanced Settings</span>
+          <span>{config.showAdvanced ? 'Hide Details' : 'Show Details'}</span>
           {config.showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
 
@@ -576,7 +974,7 @@ export default function ConfigPage() {
             {/* Adstock & Saturation */}
             <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Adstock & Saturation</h4>
             <div style={{
-              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16,
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20,
             }}>
               <div className="slds-form-element" style={{ marginBottom: 0 }}>
                 <label className="slds-form-element__label">Adstock Decay Function</label>
@@ -601,9 +999,9 @@ export default function ConfigPage() {
             </div>
 
             {/* Knot Configuration */}
-            <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, marginTop: 8 }}>Knot Configuration</h4>
+            <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Knot Configuration</h4>
             <div style={{
-              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16,
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20,
             }}>
               <div className="slds-form-element" style={{ marginBottom: 0 }}>
                 <label className="slds-form-element__label">Knots (time-varying intercept)</label>
@@ -626,13 +1024,13 @@ export default function ConfigPage() {
             </div>
 
             {/* Prior Distributions */}
-            <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, marginTop: 8 }}>Prior Distributions</h4>
+            <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Prior Distributions</h4>
             <div className="slds-notify slds-notify_info" style={{ marginBottom: 12 }}>
               <Info size={16} />
               <div style={{ fontSize: 12 }}>Meridian uses Bayesian priors on ROI. Default: LogNormal(0.0, 0.5) giving median ROI of 1.0.</div>
             </div>
             <div style={{
-              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16,
             }}>
               <div className="slds-form-element" style={{ marginBottom: 0 }}>
                 <label className="slds-form-element__label">ROI Prior Mean (log scale)</label>
@@ -643,128 +1041,47 @@ export default function ConfigPage() {
                 <input className="slds-input" type="number" step={0.1} min={0.1} value={config.priorROI.std} onChange={(e) => updateConfig({ priorROI: { ...config.priorROI, std: parseFloat(e.target.value) || 0.5 } })} />
               </div>
             </div>
-            <div className="slds-form-element__help" style={{ marginTop: 8 }}>
+            <div className="slds-form-element__help" style={{ marginBottom: 20 }}>
               Median ROI = e^{config.priorROI.mean} = {Math.exp(config.priorROI.mean).toFixed(2)}.
               Higher std = less informative prior (more data-driven).
+            </div>
+
+            {/* Spend Constraints */}
+            <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Spend Constraints</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="slds-form-element" style={{ marginBottom: 0 }}>
+                <label className="slds-form-element__label">Min Spend Shift</label>
+                <input className="slds-input" type="number" step={0.1} min={0} max={1} value={config.budgetOptimization.spendConstraintLower} onChange={(e) => updateBudget({ spendConstraintLower: parseFloat(e.target.value) })} />
+                <div className="slds-form-element__help">e.g., 0.5 = min 50% of current</div>
+              </div>
+              <div className="slds-form-element" style={{ marginBottom: 0 }}>
+                <label className="slds-form-element__label">Max Spend Shift</label>
+                <input className="slds-input" type="number" step={0.1} min={1} value={config.budgetOptimization.spendConstraintUpper} onChange={(e) => updateBudget({ spendConstraintUpper: parseFloat(e.target.value) })} />
+                <div className="slds-form-element__help">e.g., 2.0 = max 200% of current</div>
+              </div>
             </div>
           </div>
         )}
       </Section>
 
-      {/* External Factors, Seasonality & Time Controls (combined) */}
-      <Section icon={CloudLightning} color="#fe9339" title="External Factors, Seasonality & Controls"
-        badge={
-          <span style={{
-            fontSize: 12, fontWeight: 600, color: enabledFactors > 0 ? '#2e844a' : '#706e6b',
-            background: enabledFactors > 0 ? '#e6f7ec' : '#f3f3f3',
-            padding: '4px 12px', borderRadius: 12,
-          }}>
-            {enabledFactors}/{totalFactors} enabled
-          </span>
-        }
-      >
-        {/* Seasonality & Time Controls summary */}
-        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Seasonality & Time Controls</h3>
-        <div style={{
-          background: '#f8f8f8', borderRadius: 6, padding: 16, marginBottom: 20,
-          display: 'flex', alignItems: 'center', gap: 16,
-        }}>
-          <div style={{ display: 'flex', gap: 24, flex: 1 }}>
-            <div>
-              <div style={{ fontSize: 11, color: '#706e6b', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Knots</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#181818' }}>
-                {config.knots === 'auto' ? 'Automatic (1 per period)' : config.knots === 'aks' ? 'Automatic Knot Selection' : config.knots === '10pct' ? '10% of periods' : 'Single knot'}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: '#706e6b', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>AKS</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: config.enableAKS ? '#2e844a' : '#706e6b' }}>
-                {config.enableAKS ? 'Enabled' : 'Disabled'}
-              </div>
-            </div>
-          </div>
-          <div style={{ fontSize: 12, color: '#706e6b' }}>
-            To customize knot settings, use <strong>Advanced Settings</strong> in Model Settings above.
-          </div>
-        </div>
-
-        {/* External Factors */}
-        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>External Factors & Controls</h3>
-        <table className="slds-table" style={{ marginBottom: 0 }}>
-          <thead>
-            <tr><th>Factor</th><th>Description</th><th style={{ width: 80, textAlign: 'center' }}>Status</th></tr>
-          </thead>
-          <tbody>
-            {[
-              { key: 'seasonality', label: 'Seasonality', desc: 'Auto-captured by time-varying intercept (knots configuration above)' },
-              { key: 'holidays', label: 'Holiday Effects', desc: 'Black Friday, Christmas, etc. as dummy variables' },
-              { key: 'gqv', label: 'Google Query Volume (GQV)', desc: 'Organic search demand via MMM Data Platform' },
-              { key: 'competitorActivity', label: 'Competitor Activity', desc: 'Competitor spend/promotions as control variables' },
-              { key: 'macroEconomic', label: 'Macroeconomic Indicators', desc: 'CPI, unemployment rate, consumer confidence' },
-              { key: 'weather', label: 'Weather Data', desc: 'Temperature, precipitation by geo region' },
-            ].map((f) => (
-              <tr key={f.key}>
-                <td style={{ fontWeight: 600 }}>{f.label}</td>
-                <td style={{ color: '#706e6b', fontSize: 12 }}>{f.desc}</td>
-                <td style={{ textAlign: 'center' }}>
-                  <label className="slds-checkbox-toggle" style={{ marginBottom: 0, justifyContent: 'center' }}>
-                    <input type="checkbox" checked={config.externalFactors[f.key]} onChange={(e) => updateFactors({ [f.key]: e.target.checked })} />
-                    <div className="slds-checkbox-toggle__track" />
-                  </label>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Section>
-
-      {/* Budget Optimization Settings */}
-      <Section icon={BarChart3} color="#fe9339" title="Budget Optimization Settings"
-        badge={
-          <span style={{
-            fontSize: 13, fontWeight: 700, color: '#0176d3',
-            background: '#e5f5fe', padding: '4px 14px', borderRadius: 12,
-          }}>
-            ${config.budgetOptimization.totalBudget.toLocaleString()}
-          </span>
-        }
-      >
-        <div style={{
-          background: '#f8f8f8', borderRadius: 6, padding: 20,
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
-        }}>
-          <div className="slds-form-element" style={{ marginBottom: 0 }}>
-            <label className="slds-form-element__label">Optimization Scenario</label>
-            <select className="slds-select" value={config.budgetOptimization.scenario} onChange={(e) => updateBudget({ scenario: e.target.value })}>
-              <option value="fixed">Fixed Budget — Maximize ROI</option>
-              <option value="flexible_roi">Flexible Budget — Target ROI</option>
-              <option value="flexible_mroi">Flexible Budget — Target Marginal ROI</option>
-            </select>
-          </div>
-          <div className="slds-form-element" style={{ marginBottom: 0 }}>
-            <label className="slds-form-element__label">Total Budget ($)</label>
-            <input className="slds-input" type="number" value={config.budgetOptimization.totalBudget} onChange={(e) => updateBudget({ totalBudget: parseInt(e.target.value) || 0 })} />
-          </div>
-          {config.budgetOptimization.scenario !== 'fixed' && (
-            <div className="slds-form-element" style={{ marginBottom: 0 }}>
-              <label className="slds-form-element__label">Target ROI</label>
-              <input className="slds-input" type="number" step={0.1} value={config.budgetOptimization.targetROI} onChange={(e) => updateBudget({ targetROI: parseFloat(e.target.value) || 1.0 })} />
-            </div>
-          )}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div className="slds-form-element" style={{ marginBottom: 0 }}>
-              <label className="slds-form-element__label">Min Spend Shift</label>
-              <input className="slds-input" type="number" step={0.1} min={0} max={1} value={config.budgetOptimization.spendConstraintLower} onChange={(e) => updateBudget({ spendConstraintLower: parseFloat(e.target.value) })} />
-              <div className="slds-form-element__help">e.g., 0.5 = min 50% of current</div>
-            </div>
-            <div className="slds-form-element" style={{ marginBottom: 0 }}>
-              <label className="slds-form-element__label">Max Spend Shift</label>
-              <input className="slds-input" type="number" step={0.1} min={1} value={config.budgetOptimization.spendConstraintUpper} onChange={(e) => updateBudget({ spendConstraintUpper: parseFloat(e.target.value) })} />
-              <div className="slds-form-element__help">e.g., 2.0 = max 200% of current</div>
-            </div>
-          </div>
-        </div>
-      </Section>
+      {/* ═══════════════════════════════════════════ */}
+      {/* Bottom Proceed Button                      */}
+      {/* ═══════════════════════════════════════════ */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '20px 0',
+      }}>
+        <button className="slds-button slds-button_neutral" onClick={() => dispatch({ type: 'SET_STEP', payload: 'pipeline' })}>
+          <ArrowLeft size={14} /> Back to Data Ingestion
+        </button>
+        <button
+          className="slds-button slds-button_brand"
+          disabled={!state.validationResults?.canProceed}
+          onClick={() => dispatch({ type: 'SET_STEP', payload: 'training' })}
+        >
+          Proceed to Model Data Feed <ArrowRight size={14} />
+        </button>
+      </div>
     </div>
   );
 }
