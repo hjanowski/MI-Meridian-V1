@@ -253,58 +253,9 @@ export default function BudgetOptimizationPage() {
 
         {/* Seasonality Index Budget Distribution details when enabled */}
         {config.budgetOptimization.useSeasonalityIndex && budgetDistribution && (
-          <div style={{ marginTop: 20 }}>
-            <div className="slds-notify slds-notify_info" style={{ marginBottom: 12 }}>
-              <Info size={16} />
-              <div style={{ fontSize: 12 }}>
-                Formula: Monthly Budget = (Total Budget) / (Sum of Indices) x (Month&apos;s Index).
-                Index above 1.0 means marketing spend is more efficient in that period.
-              </div>
-            </div>
-            <table className="slds-table">
-              <thead>
-                <tr>
-                  <th>Month</th>
-                  <th>Seasonality Index</th>
-                  <th>Allocation %</th>
-                  <th>Monthly Budget</th>
-                  <th style={{ width: 200 }}>Distribution</th>
-                </tr>
-              </thead>
-              <tbody>
-                {budgetDistribution.map((m, i) => {
-                  const maxIdx = Math.max(...budgetDistribution.map(x => x.index));
-                  return (
-                    <tr key={i}>
-                      <td style={{ fontWeight: 600 }}>{m.name}</td>
-                      <td>
-                        <span style={{
-                          fontWeight: 700,
-                          color: m.index >= 1.0 ? '#2e844a' : '#706e6b',
-                        }}>
-                          {m.index.toFixed(2)}
-                        </span>
-                      </td>
-                      <td>{m.pct.toFixed(1)}%</td>
-                      <td style={{ fontWeight: 600 }}>${Math.round(m.budget).toLocaleString()}</td>
-                      <td>
-                        <div style={{ height: 12, background: '#e5e5e5', borderRadius: 4, overflow: 'hidden' }}>
-                          <div style={{
-                            height: '100%', borderRadius: 4,
-                            width: (m.index / maxIdx * 100) + '%',
-                            background: m.index >= 1.0 ? '#2e844a' : '#0176d3',
-                          }} />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <div style={{ marginTop: 12, fontSize: 12, color: '#706e6b', textAlign: 'right' }}>
-              Total: <strong>${config.budgetOptimization.totalBudget.toLocaleString()}</strong> &middot;
-              Sum of Indices: <strong>{budgetDistribution.reduce((s, m) => s + m.index, 0).toFixed(2)}</strong>
-            </div>
+          <div style={{ marginTop: 12, fontSize: 12, color: '#706e6b', textAlign: 'right' }}>
+            Total: <strong>${config.budgetOptimization.totalBudget.toLocaleString()}</strong> &middot;
+            Sum of Indices: <strong>{budgetDistribution.reduce((s, m) => s + m.index, 0).toFixed(2)}</strong>
           </div>
         )}
       </Section>
