@@ -23,8 +23,8 @@ function Section({ id, icon: Icon, color, title, badge, children }) {
     <div id={id} className="sf-section">
       <div className="sf-section-header">
         <div className="sf-section-header-left">
-          <div className="sf-section-icon" style={{ background: color + '14' }}>
-            <Icon size={16} color={color} />
+          <div className="sf-section-icon" style={{ background: color }}>
+            <Icon size={14} color="#FFFFFF" />
           </div>
           <h3 className="sf-section-title">{title}</h3>
         </div>
@@ -130,8 +130,8 @@ export default function BudgetOptimizationPage() {
     <div className="animate-slide-in">
       <div className="sf-page-header">
         <div className="sf-page-header-left">
-          <div className="sf-page-icon" style={{ background: '#e5f5fe' }}>
-            <DollarSign size={20} color="#0176d3" />
+          <div className="sf-page-icon" style={{ background: '#032D60' }}>
+            <DollarSign size={18} color="#FFFFFF" />
           </div>
           <div>
             <h1 className="sf-page-title">Budget Optimization</h1>
@@ -139,7 +139,7 @@ export default function BudgetOptimizationPage() {
         </div>
         <div className="sf-page-actions">
           {data && (
-            <button className="slds-button slds-button_brand" onClick={runOptimization} style={{ fontSize: 13 }}>
+            <button className="slds-button slds-button_outline-brand" onClick={runOptimization}>
               <Target size={14} /> Run Optimization
             </button>
           )}
@@ -149,7 +149,7 @@ export default function BudgetOptimizationPage() {
       {/* ═══════════════════════════════════════════ */}
       {/* 1. BUDGET SETTINGS                          */}
       {/* ═══════════════════════════════════════════ */}
-      <Section id="budget-settings" icon={BarChart3} color="#fe9339" title="Budget Settings"
+      <Section id="budget-settings" icon={BarChart3} color="#032D60" title="Budget Settings"
         badge={
           <span style={{
             fontSize: 13, fontWeight: 700, color: '#0176d3',
@@ -160,7 +160,6 @@ export default function BudgetOptimizationPage() {
         }
       >
         <div style={{
-          background: '#f8f8f8', borderRadius: 6, padding: 20,
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
         }}>
           <div className="slds-form-element" style={{ marginBottom: 0 }}>
@@ -208,7 +207,7 @@ export default function BudgetOptimizationPage() {
       {/* ═══════════════════════════════════════════ */}
       {/* 2. SEASONALITY INDEX                        */}
       {/* ═══════════════════════════════════════════ */}
-      <Section id="seasonality" icon={Calendar} color="#9050e9" title="Seasonality Index"
+      <Section id="seasonality" icon={Calendar} color="#1B5F6A" title="Seasonality Index"
         badge={
           <label className="slds-checkbox-toggle" style={{ marginBottom: 0 }}>
             <input type="checkbox" checked={config.budgetOptimization.useSeasonalityIndex} onChange={(e) => updateBudget({ useSeasonalityIndex: e.target.checked })} />
@@ -267,7 +266,7 @@ export default function BudgetOptimizationPage() {
       {/* 3. CHANNEL BUDGET BY MONTH                  */}
       {/* ═══════════════════════════════════════════ */}
       {config.budgetOptimization.useSeasonalityIndex && budgetDistribution && activeOptResults && (
-        <Section id="monthly-budget" icon={TrendingUp} color="#2e844a" title="Channel Budget by Month (Seasonality-Adjusted)"
+        <Section id="monthly-budget" icon={TrendingUp} color="#2E844A" title="Channel Budget by Month (Seasonality-Adjusted)"
           badge={
             <button className="slds-button slds-button_success" onClick={exportToSheets} style={{ fontSize: 13 }}>
               <FileSpreadsheet size={14} /> Export to Google Sheets (CSV)

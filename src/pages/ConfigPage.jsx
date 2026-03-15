@@ -75,10 +75,10 @@ function StatusDot({ active }) {
 function SectionIcon({ icon: Icon, color }) {
   return (
     <div style={{
-      width: 36, height: 36, borderRadius: '50%', background: color + '14',
+      width: 32, height: 32, borderRadius: '50%', background: color,
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
     }}>
-      <Icon size={18} color={color} />
+      <Icon size={14} color="#FFFFFF" />
     </div>
   );
 }
@@ -168,8 +168,8 @@ export default function ConfigPage() {
       {/* Page header */}
       <div className="sf-page-header">
         <div className="sf-page-header-left">
-          <div className="sf-page-icon" style={{ background: '#e5f5fe' }}>
-            <Settings size={20} color="#0176d3" />
+          <div className="sf-page-icon" style={{ background: '#032D60' }}>
+            <Settings size={18} color="#FFFFFF" />
           </div>
           <div>
             <h1 className="sf-page-title">MI Configuration</h1>
@@ -216,7 +216,7 @@ export default function ConfigPage() {
       {/* ═══════════════════════════════════════════ */}
       {/* 1. DATA FEED SECTION                       */}
       {/* ═══════════════════════════════════════════ */}
-      <Section id="data-sources" icon={Database} color="#0176d3" title="Data Feed"
+      <Section id="data-sources" icon={Database} color="#032D60" title="Data Feed"
         badge={
           <span style={{
             fontSize: 12, fontWeight: 600,
@@ -521,7 +521,7 @@ export default function ConfigPage() {
       {/* ═══════════════════════════════════════════ */}
       {/* 2. KPI CONFIGURATION                       */}
       {/* ═══════════════════════════════════════════ */}
-      <Section id="kpi-config" icon={BarChart3} color="#0176d3" title="KPI Configuration">
+      <Section id="kpi-config" icon={BarChart3} color="#1B5F6A" title="KPI Configuration">
         <p style={{ fontSize: 13, color: '#706e6b', marginBottom: 16 }}>
           Select the KPI metric to model. Then configure the Data Cloud data source for this metric.
         </p>
@@ -704,7 +704,7 @@ export default function ConfigPage() {
       {/* ═══════════════════════════════════════════ */}
       {/* 3. EXTERNAL FACTORS & CONTROLS             */}
       {/* ═══════════════════════════════════════════ */}
-      <Section id="external-factors" icon={CloudLightning} color="#fe9339" title="External Factors, Seasonality & Controls"
+      <Section id="external-factors" icon={CloudLightning} color="#5C4F9A" title="External Factors, Seasonality & Controls"
         badge={
           <span style={{
             fontSize: 12, fontWeight: 600, color: enabledFactors > 0 ? '#2e844a' : '#706e6b',
@@ -746,7 +746,7 @@ export default function ConfigPage() {
       {/* ═══════════════════════════════════════════ */}
       {/* 4. ADVANCED SETTINGS (bottom)              */}
       {/* ═══════════════════════════════════════════ */}
-      <Section id="advanced" icon={Sliders} color="#706e6b" title="Advanced Settings"
+      <Section id="advanced" icon={Sliders} color="#444444" title="Advanced Settings"
         badge={
           <span style={{
             fontSize: 12, fontWeight: 500, color: '#706e6b',

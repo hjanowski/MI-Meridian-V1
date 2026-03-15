@@ -81,8 +81,8 @@ export default function TrainingPage() {
     <div className="animate-slide-in">
       <div className="sf-page-header">
         <div className="sf-page-header-left">
-          <div className="sf-page-icon" style={{ background: '#e5f5fe' }}>
-            <Zap size={20} color="#0176d3" />
+          <div className="sf-page-icon" style={{ background: '#032D60' }}>
+            <Zap size={18} color="#FFFFFF" />
           </div>
           <div>
             <h1 className="sf-page-title">Model Data Feed</h1>
@@ -140,7 +140,7 @@ export default function TrainingPage() {
               { label: 'Samples', value: '500 steps' },
               { label: 'Adstock', value: state.config.adstockDecay },
             ].map((s, i) => (
-              <div key={i} style={{ background: '#f3f3f3', borderRadius: 8, padding: 10, textAlign: 'center' }}>
+              <div key={i} style={{ background: '#FAFAFA', border: '1px solid #DDDBDA', borderRadius: 0, padding: 10, textAlign: 'center' }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: '#706e6b', textTransform: 'uppercase' }}>{s.label}</div>
                 <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }}>{s.value}</div>
               </div>

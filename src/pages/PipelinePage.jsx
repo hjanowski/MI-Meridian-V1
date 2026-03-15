@@ -585,14 +585,21 @@ export default function PipelinePage() {
   return (
     <div className="animate-slide-in">
       {/* Page header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h1 className="slds-text-heading_large">Data Ingestion</h1>
-          <p style={{ fontSize: 13, color: '#706e6b', marginTop: 4 }}>Create a new pipeline to ingest marketing data for Meridian analysis</p>
+      <div className="sf-page-header">
+        <div className="sf-page-header-left">
+          <div className="sf-page-icon" style={{ background: '#032D60' }}>
+            <Database size={18} color="#FFFFFF" />
+          </div>
+          <div>
+            <h1 className="sf-page-title">Data Ingestion</h1>
+            <p className="sf-page-subtitle">Create a new pipeline to ingest marketing data for Meridian analysis</p>
+          </div>
         </div>
-        <button className="slds-button slds-button_brand" onClick={resetAll}>
-          <Database size={16} /> New Pipeline
-        </button>
+        <div className="sf-page-actions">
+          <button className="slds-button slds-button_outline-brand" onClick={resetAll}>
+            <Database size={14} /> New Pipeline
+          </button>
+        </div>
       </div>
 
       {/* Progress bar */}

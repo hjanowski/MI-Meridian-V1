@@ -32,10 +32,10 @@ function formatCurrency(val) {
 
 function MetricCard({ label, value, sub, color }) {
   return (
-    <div style={{ background: '#f3f3f3', borderRadius: 8, padding: 16 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: '#706e6b', textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: color || '#181818' }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: '#706e6b', marginTop: 2 }}>{sub}</div>}
+    <div style={{ background: '#FFFFFF', border: '1px solid #DDDBDA', padding: 16 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#706E6B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: color || '#3E3E3C' }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: '#706E6B', marginTop: 2 }}>{sub}</div>}
     </div>
   );
 }
@@ -139,10 +139,15 @@ export default function DashboardPage() {
 
   return (
     <div className="animate-slide-in">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div>
-          <h1 className="slds-text-heading_large">Meridian Dashboards</h1>
-          <p style={{ fontSize: 13, color: '#706e6b', marginTop: 4 }}>Model results, media analysis, and budget optimization</p>
+      <div className="sf-page-header">
+        <div className="sf-page-header-left">
+          <div className="sf-page-icon" style={{ background: '#032D60' }}>
+            <BarChart3 size={18} color="#FFFFFF" />
+          </div>
+          <div>
+            <h1 className="sf-page-title">Meridian Dashboards</h1>
+            <p className="sf-page-subtitle">Model results, media analysis, and budget optimization</p>
+          </div>
         </div>
       </div>
 
