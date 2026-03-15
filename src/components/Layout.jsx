@@ -1,43 +1,20 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Search, Bell, Settings as SettingsIcon, HelpCircle, Plus, Star, ChevronDown, Cloud, Menu, Grid3X3 } from 'lucide-react';
+import { Search, Bell, Settings as SettingsIcon, HelpCircle, Plus, Star, Cloud, Grid3X3, ChevronDown, ChevronRight, ExternalLink, SquarePlus } from 'lucide-react';
 
-// Pages that get the Salesforce-style left sidebar
-const SF_PAGES = ['config', 'training', 'budget'];
-
-// Top navigation tabs (Salesforce-style)
-const TOP_TABS = [
-  { key: 'home', label: 'Home' },
-  { key: 'pipeline', label: 'Data Ingestion' },
-  { key: 'config', label: 'MI Configuration' },
+// Meridian sub-items mapping to app pages
+const MERIDIAN_ITEMS = [
+  { key: 'pipeline', label: 'Data Ingestion - Admin' },
+  { key: 'config', label: 'Configuration' },
   { key: 'training', label: 'Model Data Feed' },
   { key: 'budget', label: 'Budget Optimization' },
-  { key: 'dashboards', label: 'Dashboards' },
+  { key: 'dashboards', label: 'Meridian Dashboards' },
 ];
-
-// Left sidebar items per page
-const SIDEBAR_ITEMS = {
-  config: [
-    { key: 'data-sources', label: '3rd Party Data Sources' },
-    { key: 'first-party', label: '1st Party Data' },
-    { key: 'kpi-config', label: 'KPI Configuration' },
-    { key: 'external-factors', label: 'External Factors' },
-    { key: 'advanced', label: 'Advanced Settings' },
-  ],
-  training: [
-    { key: 'training-progress', label: 'Training Progress' },
-    { key: 'diagnostics', label: 'Model Diagnostics' },
-  ],
-  budget: [
-    { key: 'budget-settings', label: 'Budget Settings' },
-    { key: 'seasonality', label: 'Seasonality Index' },
-    { key: 'monthly-budget', label: 'Channel Budget by Month' },
-  ],
-};
 
 export default function Layout({ children }) {
   const { state, dispatch } = useApp();
-  const [searchFocused, setSearchFocused] = useState(false);
+  const [meridianExpanded, setMeridianExpanded] = useState(true);
+  const [harmonizationExpanded, setHarmonizationExpanded] = useState(false);
 
   const canNavigate = (key) => {
     if (key === 'home') return true;
@@ -49,98 +26,168 @@ export default function Layout({ children }) {
     return false;
   };
 
-  const hasSidebar = SF_PAGES.includes(state.currentStep);
-  const sidebarItems = SIDEBAR_ITEMS[state.currentStep] || [];
+  const isMeridianPage = MERIDIAN_ITEMS.some(item => item.key === state.currentStep);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      {/* ═══ SALESFORCE GLOBAL HEADER ═══ */}
-      <header className="sf-global-header">
-        <div className="sf-header-left">
-          {/* Salesforce Cloud Logo */}
-          <svg width="24" height="17" viewBox="0 0 24 17" style={{ flexShrink: 0 }}>
-            <path d="M10.1 1.4C11 .5 12.2 0 13.5 0c1.7 0 3.2.9 4 2.3.7-.3 1.5-.5 2.3-.5C22.7 1.8 25 4.2 25 7.1s-2.3 5.3-5.2 5.3c-.3 0-.7 0-1-.1-.7 1.4-2.1 2.4-3.8 2.4-0.6 0-1.2-.1-1.7-.4-.7 1.3-2.1 2.2-3.7 2.2-1.5 0-2.7-.7-3.5-1.9-.3.1-.7.1-1 .1C2.3 14.7 0 12.3 0 9.4 0 7.4 1.1 5.7 2.7 4.8 2.5 4.3 2.4 3.8 2.4 3.2 2.4 1.4 3.9 0 5.7 0 6.8 0 7.8.5 8.5 1.3l1.6.1z" fill="#00A1E0"/>
-          </svg>
-          <Grid3X3 size={18} color="white" style={{ opacity: 0.7, cursor: 'pointer' }} />
-          <span className="sf-app-name">Marketing Intelligence</span>
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#f3f3f3' }}>
+      {/* ═══ ROW 1: SALESFORCE GLOBAL HEADER ═══ */}
+      <header style={{
+        height: 40, background: '#032D60', display: 'flex', alignItems: 'center',
+        padding: '0 12px', gap: 12, flexShrink: 0,
+      }}>
+        {/* SF Cloud Logo */}
+        <svg width="22" height="15" viewBox="0 0 23 15" style={{ flexShrink: 0 }}>
+          <path d="M9.5 1.3C10.3.5 11.4 0 12.6 0c1.6 0 3 .8 3.7 2.1.7-.3 1.4-.4 2.2-.4 2.6 0 4.7 2.2 4.7 4.8s-2.1 4.8-4.7 4.8c-.3 0-.6 0-.9-.1-.6 1.3-2 2.2-3.5 2.2-.6 0-1.1-.1-1.6-.4-.6 1.2-1.9 2-3.4 2-1.4 0-2.5-.7-3.2-1.7-.3.1-.6.1-.9.1C2.1 13.4 0 11.2 0 8.6 0 6.8 1 5.2 2.5 4.4 2.3 4 2.2 3.5 2.2 2.9 2.2 1.3 3.6 0 5.3 0c1 0 1.9.5 2.5 1.2l1.7.1z" fill="#00A1E0"/>
+        </svg>
 
-        {/* Search bar */}
-        <div className="sf-search-wrapper">
-          <div className={`sf-search-bar ${searchFocused ? 'sf-search-bar--focused' : ''}`}>
-            <Search size={14} color="#706e6b" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="sf-search-input"
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-            />
+        {/* Search bar (centered) */}
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)',
+            borderRadius: 4, padding: '3px 12px', width: '100%', maxWidth: 380,
+          }}>
+            <Search size={13} color="rgba(255,255,255,0.6)" />
+            <input type="text" placeholder="Search..." style={{
+              background: 'none', border: 'none', outline: 'none', color: 'white',
+              fontSize: 12, width: '100%', fontFamily: 'inherit',
+            }} />
           </div>
         </div>
 
-        {/* Right icons */}
-        <div className="sf-header-right">
-          <Star size={18} />
-          <Plus size={18} />
-          <Cloud size={18} />
-          <HelpCircle size={18} />
-          <SettingsIcon size={18} />
-          <Bell size={18} />
-          <div className="sf-avatar">
-            <span style={{ fontSize: 11, fontWeight: 700 }}>MI</span>
-          </div>
+        {/* Right utility icons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'rgba(255,255,255,0.75)' }}>
+          <Star size={16} style={{ cursor: 'pointer' }} />
+          <Plus size={16} style={{ cursor: 'pointer' }} />
+          <Cloud size={16} style={{ cursor: 'pointer' }} />
+          <HelpCircle size={16} style={{ cursor: 'pointer' }} />
+          <SettingsIcon size={16} style={{ cursor: 'pointer' }} />
+          <Bell size={16} style={{ cursor: 'pointer' }} />
+          <div style={{
+            width: 24, height: 24, borderRadius: '50%', background: '#1b96ff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'white', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+          }}>MI</div>
         </div>
       </header>
 
-      {/* ═══ SALESFORCE TOP NAVIGATION TABS ═══ */}
-      <nav className="sf-nav-tabs">
-        {TOP_TABS.map((tab) => {
-          const isActive = state.currentStep === tab.key;
-          const enabled = canNavigate(tab.key);
+      {/* ═══ ROW 2: APP NAV BAR (white) ═══ */}
+      <nav style={{
+        height: 40, background: 'white', borderBottom: '1px solid #d8d8d8',
+        display: 'flex', alignItems: 'stretch', padding: '0 12px', flexShrink: 0,
+      }}>
+        {/* Waffle + App Name */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 16 }}>
+          <Grid3X3 size={16} color="#706e6b" style={{ cursor: 'pointer' }} />
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#181818', whiteSpace: 'nowrap' }}>Marketing Intelligence</span>
+        </div>
+
+        {/* Nav tabs */}
+        {['Home', 'Goals', 'Data Management', 'Marketing Analytics', 'Segment Intelligence'].map((tab) => {
+          const isActive = tab === 'Data Management';
           return (
-            <button
-              key={tab.key}
-              className={`sf-nav-tab ${isActive ? 'sf-nav-tab--active' : ''} ${!enabled ? 'sf-nav-tab--disabled' : ''}`}
-              onClick={() => enabled && dispatch({ type: 'SET_STEP', payload: tab.key })}
-            >
-              {tab.label}
+            <button key={tab} style={{
+              padding: '0 14px', fontSize: 13, fontWeight: isActive ? 700 : 400,
+              color: isActive ? '#0176d3' : '#444', cursor: 'pointer',
+              border: 'none', background: 'none',
+              borderBottom: isActive ? '3px solid #0176d3' : '3px solid transparent',
+              marginBottom: -1, fontFamily: 'inherit', whiteSpace: 'nowrap',
+            }}>
+              {tab}
             </button>
           );
         })}
+        <button style={{
+          padding: '0 14px', fontSize: 13, fontWeight: 400, color: '#444',
+          cursor: 'pointer', border: 'none', background: 'none',
+          borderBottom: '3px solid transparent', marginBottom: -1,
+          fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
+        }}>
+          Reports <ChevronDown size={12} />
+        </button>
+
+        {/* Recently Viewed tab */}
+        <div style={{ flex: 1 }} />
+        <button style={{
+          padding: '0 14px', fontSize: 12, fontWeight: 400, color: '#706e6b',
+          cursor: 'pointer', border: 'none', background: 'none',
+          borderBottom: '3px solid transparent', marginBottom: -1,
+          fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
+        }}>
+          * Recently Viewed | Data Streams <ChevronDown size={12} />
+        </button>
       </nav>
 
-      {/* ═══ CONTENT AREA ═══ */}
-      <div style={{ flex: 1, display: 'flex', background: '#f3f3f3' }}>
-        {/* Left sidebar (Salesforce style - only on SF pages) */}
-        {hasSidebar && (
-          <aside className="sf-sidebar">
-            <div className="sf-sidebar-header">
-              {state.currentStep === 'config' ? 'MI Configuration' :
-               state.currentStep === 'training' ? 'Model Data Feed' :
-               'Budget Optimization'}
-            </div>
-            <nav className="sf-sidebar-nav">
-              {sidebarItems.map((item) => (
-                <a
-                  key={item.key}
-                  className="sf-sidebar-link"
-                  href={`#${item.key}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    const el = document.getElementById(item.key);
-                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }}
-                >
-                  {item.label}
-                </a>
-              ))}
-            </nav>
-          </aside>
-        )}
+      {/* ═══ MAIN LAYOUT: SIDEBAR + CONTENT ═══ */}
+      <div style={{ flex: 1, display: 'flex' }}>
+        {/* LEFT SIDEBAR */}
+        <aside style={{
+          width: 220, background: 'white', borderRight: '1px solid #d8d8d8',
+          flexShrink: 0, padding: '20px 0', overflowY: 'auto',
+        }}>
+          {/* Section header */}
+          <div style={{ padding: '0 20px 14px', fontSize: 14, fontWeight: 700, color: '#181818' }}>
+            Data Management
+          </div>
 
-        {/* Main content */}
-        <main className="sf-main-content" style={{ padding: hasSidebar ? '24px 32px' : '24px 32px' }}>
+          {/* Static SF nav items */}
+          <a href="#" onClick={(e) => e.preventDefault()} className="sf-sidebar-link">Data Pipelines</a>
+
+          {/* Harmonization (expandable) */}
+          <button
+            onClick={() => setHarmonizationExpanded(!harmonizationExpanded)}
+            className="sf-sidebar-expandable"
+          >
+            {harmonizationExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            <span>Harmonization</span>
+          </button>
+          {harmonizationExpanded && (
+            <div style={{ paddingLeft: 20 }}>
+              <a href="#" onClick={(e) => e.preventDefault()} className="sf-sidebar-link sf-sidebar-link--child">Data Enrichment</a>
+              <a href="#" onClick={(e) => e.preventDefault()} className="sf-sidebar-link sf-sidebar-link--child">Patterns</a>
+            </div>
+          )}
+
+          <a href="#" onClick={(e) => e.preventDefault()} className="sf-sidebar-link">Anchor Campaigns</a>
+          <a href="#" onClick={(e) => e.preventDefault()} className="sf-sidebar-link">Funnel-Based Attribution</a>
+          <a href="#" onClick={(e) => e.preventDefault()} className="sf-sidebar-link">Touch-Based Attribution</a>
+
+          {/* ── MERIDIAN (expandable) ── */}
+          <button
+            onClick={() => setMeridianExpanded(!meridianExpanded)}
+            className={`sf-sidebar-expandable ${isMeridianPage ? 'sf-sidebar-expandable--active' : ''}`}
+          >
+            {meridianExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            <span>Meridian</span>
+          </button>
+          {meridianExpanded && (
+            <div style={{ paddingLeft: 20 }}>
+              {MERIDIAN_ITEMS.map((item) => {
+                const isActive = state.currentStep === item.key;
+                const enabled = canNavigate(item.key);
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => enabled && dispatch({ type: 'SET_STEP', payload: item.key })}
+                    className={`sf-sidebar-link sf-sidebar-link--child ${isActive ? 'sf-sidebar-link--active' : ''} ${!enabled ? 'sf-sidebar-link--disabled' : ''}`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Bottom separator + Semantic Data Model */}
+          <div style={{ borderTop: '1px solid #e5e5e5', margin: '16px 0' }} />
+          <div style={{ padding: '0 20px', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#181818' }}>Semantic Data Model</span>
+            <SquarePlus size={14} color="#0176d3" style={{ cursor: 'pointer' }} />
+          </div>
+        </aside>
+
+        {/* MAIN CONTENT */}
+        <main style={{ flex: 1, padding: 24, overflowY: 'auto', minWidth: 0 }}>
           {children}
         </main>
       </div>
