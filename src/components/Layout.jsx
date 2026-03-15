@@ -39,7 +39,7 @@ export default function Layout({ children }) {
       <header className="slds-global-header">
         {/* SF Cloud Logo */}
         <div className="slds-global-header__logo">
-          <svg width="36" height="25" viewBox="0 0 23 15" style={{ flexShrink: 0 }}>
+          <svg width="44" height="30" viewBox="0 0 23 15" style={{ flexShrink: 0 }}>
             <path d="M9.5 1.3C10.3.5 11.4 0 12.6 0c1.6 0 3 .8 3.7 2.1.7-.3 1.4-.4 2.2-.4 2.6 0 4.7 2.2 4.7 4.8s-2.1 4.8-4.7 4.8c-.3 0-.6 0-.9-.1-.6 1.3-2 2.2-3.5 2.2-.6 0-1.1-.1-1.6-.4-.6 1.2-1.9 2-3.4 2-1.4 0-2.5-.7-3.2-1.7-.3.1-.6.1-.9.1C2.1 13.4 0 11.2 0 8.6 0 6.8 1 5.2 2.5 4.4 2.3 4 2.2 3.5 2.2 2.9 2.2 1.3 3.6 0 5.3 0c1 0 1.9.5 2.5 1.2l1.7.1z" fill="#009CDB"/>
           </svg>
         </div>
@@ -68,7 +68,7 @@ export default function Layout({ children }) {
       <nav className="slds-global-tabs">
         {/* Waffle + App Name */}
         <div className="slds-global-tabs__app-name">
-          <svg width="16" height="16" viewBox="0 0 16 16" style={{ cursor: 'pointer', flexShrink: 0 }}>
+          <svg width="20" height="20" viewBox="0 0 16 16" style={{ cursor: 'pointer', flexShrink: 0 }}>
             <circle cx="3" cy="3" r="1.8" fill="#706E6B"/>
             <circle cx="8" cy="3" r="1.8" fill="#706E6B"/>
             <circle cx="13" cy="3" r="1.8" fill="#706E6B"/>
