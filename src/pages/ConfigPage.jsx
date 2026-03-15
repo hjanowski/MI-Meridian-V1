@@ -60,6 +60,50 @@ const RULE_TYPES = [
   { value: 'contains', label: 'Contains' },
 ];
 
+// ── Meridian Measurement Mapping ──
+const TC_SOURCE_MEASUREMENTS = {
+  tv_linear: [
+    'TV Gross Rating Points (GRPs)', 'TV Target Rating Points (TRPs)', 'TV Impressions',
+    'TV Reach', 'TV Frequency', 'TV Spot Count', 'TV Net Spend', 'TV Gross Spend',
+    'TV CPP (Cost Per Point)', 'TV CPM (Cost Per Mille)',
+  ],
+  tv_ctv: [
+    'CTV Impressions', 'CTV Completed Views', 'CTV Video Completion Rate',
+    'CTV Reach', 'CTV Frequency', 'CTV Clicks', 'CTV Net Spend', 'CTV Gross Spend',
+    'CTV CPM', 'CTV CPCV (Cost Per Completed View)',
+  ],
+  radio_spotify: [
+    'Audio Impressions', 'Audio Listens (30s+)', 'Audio Completion Rate',
+    'Audio Reach', 'Audio Frequency', 'Audio Clicks', 'Audio Net Spend', 'Audio Gross Spend',
+    'Audio CPM', 'Audio CTR',
+  ],
+  radio_iheart: [
+    'Radio Gross Impressions', 'Radio Spots Aired', 'Radio GRPs',
+    'Radio Reach', 'Radio Frequency', 'Radio Net Spend', 'Radio Gross Spend',
+    'Radio CPP', 'Radio CPM',
+  ],
+  ooh_digital: [
+    'DOOH Impressions', 'DOOH Plays', 'DOOH Share of Voice',
+    'DOOH Reach', 'DOOH Frequency', 'DOOH Net Spend', 'DOOH Gross Spend',
+    'DOOH CPM', 'DOOH Dwell Time (avg sec)',
+  ],
+  ooh_transit: [
+    'Transit Impressions', 'Transit Panels', 'Transit Reach',
+    'Transit Frequency', 'Transit Net Spend', 'Transit Gross Spend',
+    'Transit CPM',
+  ],
+  print_magazine: [
+    'Print Circulation', 'Print Readership', 'Print Page Views',
+    'Print Ad Insertions', 'Print Gross Spend', 'Print Net Spend',
+    'Print CPM', 'Print Response Rate',
+  ],
+  print_newspaper: [
+    'Newspaper Circulation', 'Newspaper Readership', 'Newspaper Insertions',
+    'Newspaper Net Spend', 'Newspaper Gross Spend', 'Newspaper CPM',
+    'Newspaper Column Inches',
+  ],
+};
+
 // ── UI helpers ──
 function StatusDot({ active }) {
   return (
@@ -125,6 +169,17 @@ export default function ConfigPage() {
   const { state, dispatch } = useApp();
   const { config } = state;
   const df = config.dataFeed;
+
+  // Meridian measurement mapping state
+  const [apiActivityMeasurement, setApiActivityMeasurement] = useState('impressions');
+  const [tcMeasurementMap, setTcMeasurementMap] = useState({});
+
+  const updateTcMeasurement = (pipelineId, field, value) => {
+    setTcMeasurementMap(prev => ({
+      ...prev,
+      [pipelineId]: { ...prev[pipelineId], [field]: value },
+    }));
+  };
 
   const updateConfig = (updates) => dispatch({ type: 'UPDATE_CONFIG', payload: updates });
   const updateDataFeed = (updates) => dispatch({ type: 'UPDATE_DATA_FEED', payload: updates });
@@ -373,6 +428,59 @@ export default function ConfigPage() {
                 </div>
               ))}
             </div>
+
+            {/* ── Meridian Media Activity Measurement (API) ── */}
+            {selectedApiPipelines.length > 0 && (
+              <div style={{ marginTop: 20 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Meridian Media Activity Measurement</h4>
+                <p style={{ fontSize: 12, color: '#706e6b', marginBottom: 12 }}>
+                  Select the measurement type to use as the media activity input for all API-based sources in the Meridian model.
+                </p>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  {[
+                    { key: 'impressions', label: 'Impressions', desc: 'Use impression volume as media activity signal' },
+                    { key: 'clicks', label: 'Clicks', desc: 'Use click volume as media activity signal' },
+                  ].map(opt => (
+                    <div
+                      key={opt.key}
+                      onClick={() => setApiActivityMeasurement(opt.key)}
+                      style={{
+                        flex: 1,
+                        border: `2px solid ${apiActivityMeasurement === opt.key ? '#0070D2' : '#DDDBDA'}`,
+                        borderRadius: 4, padding: 14, cursor: 'pointer',
+                        background: apiActivityMeasurement === opt.key ? '#EAF5FE' : 'white',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{
+                          width: 16, height: 16, borderRadius: '50%',
+                          border: `2px solid ${apiActivityMeasurement === opt.key ? '#0070D2' : '#C9C7C5'}`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {apiActivityMeasurement === opt.key && (
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#0070D2' }} />
+                          )}
+                        </div>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: apiActivityMeasurement === opt.key ? '#3E3E3C' : '#706E6B' }}>
+                          {opt.label}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#706E6B', marginTop: 6, paddingLeft: 24 }}>{opt.desc}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{
+                  background: '#EAF5FE', border: '1px solid #0070D2', borderRadius: 4, padding: 10, marginTop: 12,
+                  fontSize: 12, color: '#3E3E3C', display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <Info size={14} color="#0070D2" />
+                  <span>
+                    <strong>{apiActivityMeasurement === 'impressions' ? 'Impressions' : 'Clicks'}</strong> will be used as the Meridian Media Activity
+                    measurement for all {selectedApiPipelines.length} selected API pipeline{selectedApiPipelines.length > 1 ? 's' : ''}.
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -433,6 +541,82 @@ export default function ConfigPage() {
                 disabled={!df.tcRule.type}
               />
             </div>
+
+            {/* ── Meridian Measurement Mapping (Total Connect) ── */}
+            {selectedTcPipelines.length > 0 && (
+              <div style={{ marginTop: 20 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Meridian Measurement Mapping</h4>
+                <p style={{ fontSize: 12, color: '#706e6b', marginBottom: 12 }}>
+                  For each selected Total Connect source, choose which measurement represents the
+                  <strong> Meridian Media Activity</strong> and which represents the <strong>Meridian Media Cost</strong>.
+                </p>
+                <div style={{ background: 'white', border: '1px solid #e5e5e5', borderRadius: 6, overflow: 'hidden' }}>
+                  <table className="slds-table" style={{ marginBottom: 0 }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '24%' }}>Source</th>
+                        <th style={{ width: '38%' }}>Media Activity Measurement</th>
+                        <th style={{ width: '38%' }}>Media Cost Measurement</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedTcPipelines.map(p => {
+                        const measurements = TC_SOURCE_MEASUREMENTS[p.id] || [];
+                        const mapping = tcMeasurementMap[p.id] || {};
+                        return (
+                          <tr key={p.id}>
+                            <td style={{ fontWeight: 600, fontSize: 12 }}>{p.name}</td>
+                            <td>
+                              <select
+                                className="slds-select"
+                                value={mapping.activity || ''}
+                                onChange={(e) => updateTcMeasurement(p.id, 'activity', e.target.value)}
+                                style={{ fontSize: 12 }}
+                              >
+                                <option value="">-- Select Activity --</option>
+                                {measurements.map(m => (
+                                  <option key={m} value={m}>{m}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td>
+                              <select
+                                className="slds-select"
+                                value={mapping.cost || ''}
+                                onChange={(e) => updateTcMeasurement(p.id, 'cost', e.target.value)}
+                                style={{ fontSize: 12 }}
+                              >
+                                <option value="">-- Select Cost --</option>
+                                {measurements.map(m => (
+                                  <option key={m} value={m}>{m}</option>
+                                ))}
+                              </select>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {selectedTcPipelines.some(p => {
+                  const m = tcMeasurementMap[p.id];
+                  return m && m.activity && m.cost;
+                }) && (
+                  <div style={{
+                    background: '#E6F7EC', border: '1px solid #2E844A', borderRadius: 4, padding: 10, marginTop: 12,
+                    fontSize: 12, color: '#3E3E3C', display: 'flex', alignItems: 'center', gap: 8,
+                  }}>
+                    <CheckCircle size={14} color="#2E844A" />
+                    <span>
+                      {selectedTcPipelines.filter(p => {
+                        const m = tcMeasurementMap[p.id];
+                        return m && m.activity && m.cost;
+                      }).length} of {selectedTcPipelines.length} source{selectedTcPipelines.length > 1 ? 's' : ''} fully mapped.
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
