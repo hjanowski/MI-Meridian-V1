@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { generateOptimizationResults } from '../data/dataGenerator';
-import { Info, Target, FileSpreadsheet, BarChart3, Calendar, TrendingUp } from 'lucide-react';
+import { Info, Target, FileSpreadsheet, BarChart3, Calendar, TrendingUp, DollarSign } from 'lucide-react';
 
 const SEASONALITY_INDEX = {
   Jan: 0.78, Feb: 0.82, Mar: 0.95, Apr: 0.98, May: 1.05, Jun: 1.10,
@@ -18,22 +18,21 @@ function formatCurrency(val) {
   return '$' + val.toFixed(0);
 }
 
-function Section({ icon: Icon, color, title, badge, children }) {
+function Section({ id, icon: Icon, color, title, badge, children }) {
   return (
-    <div className="slds-card" style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <div style={{
-          width: 36, height: 36, borderRadius: '50%', background: color + '14',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-        }}>
-          <Icon size={18} color={color} />
-        </div>
-        <div style={{ flex: 1 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: '#181818' }}>{title}</h3>
+    <div id={id} className="sf-section">
+      <div className="sf-section-header">
+        <div className="sf-section-header-left">
+          <div className="sf-section-icon" style={{ background: color + '14' }}>
+            <Icon size={16} color={color} />
+          </div>
+          <h3 className="sf-section-title">{title}</h3>
         </div>
         {badge}
       </div>
-      {children}
+      <div className="sf-section-body">
+        {children}
+      </div>
     </div>
   );
 }
@@ -129,24 +128,28 @@ export default function BudgetOptimizationPage() {
 
   return (
     <div className="animate-slide-in">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#181818' }}>Budget Optimization</h1>
-          <p style={{ fontSize: 13, color: '#706e6b', marginTop: 2 }}>
-            Configure budget scenarios, seasonality distribution, and run optimization
-          </p>
+      <div className="sf-page-header">
+        <div className="sf-page-header-left">
+          <div className="sf-page-icon" style={{ background: '#e5f5fe' }}>
+            <DollarSign size={20} color="#0176d3" />
+          </div>
+          <div>
+            <h1 className="sf-page-title">Budget Optimization</h1>
+          </div>
         </div>
-        {data && (
-          <button className="slds-button slds-button_brand" onClick={runOptimization} style={{ fontSize: 13 }}>
-            <Target size={14} /> Run Optimization
-          </button>
-        )}
+        <div className="sf-page-actions">
+          {data && (
+            <button className="slds-button slds-button_brand" onClick={runOptimization} style={{ fontSize: 13 }}>
+              <Target size={14} /> Run Optimization
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ═══════════════════════════════════════════ */}
       {/* 1. BUDGET SETTINGS                          */}
       {/* ═══════════════════════════════════════════ */}
-      <Section icon={BarChart3} color="#fe9339" title="Budget Settings"
+      <Section id="budget-settings" icon={BarChart3} color="#fe9339" title="Budget Settings"
         badge={
           <span style={{
             fontSize: 13, fontWeight: 700, color: '#0176d3',
@@ -205,7 +208,7 @@ export default function BudgetOptimizationPage() {
       {/* ═══════════════════════════════════════════ */}
       {/* 2. SEASONALITY INDEX                        */}
       {/* ═══════════════════════════════════════════ */}
-      <Section icon={Calendar} color="#9050e9" title="Seasonality Index"
+      <Section id="seasonality" icon={Calendar} color="#9050e9" title="Seasonality Index"
         badge={
           <label className="slds-checkbox-toggle" style={{ marginBottom: 0 }}>
             <input type="checkbox" checked={config.budgetOptimization.useSeasonalityIndex} onChange={(e) => updateBudget({ useSeasonalityIndex: e.target.checked })} />
@@ -264,7 +267,7 @@ export default function BudgetOptimizationPage() {
       {/* 3. CHANNEL BUDGET BY MONTH                  */}
       {/* ═══════════════════════════════════════════ */}
       {config.budgetOptimization.useSeasonalityIndex && budgetDistribution && activeOptResults && (
-        <Section icon={TrendingUp} color="#2e844a" title="Channel Budget by Month (Seasonality-Adjusted)"
+        <Section id="monthly-budget" icon={TrendingUp} color="#2e844a" title="Channel Budget by Month (Seasonality-Adjusted)"
           badge={
             <button className="slds-button slds-button_success" onClick={exportToSheets} style={{ fontSize: 13 }}>
               <FileSpreadsheet size={14} /> Export to Google Sheets (CSV)

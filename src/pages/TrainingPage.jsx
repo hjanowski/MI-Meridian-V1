@@ -79,34 +79,43 @@ export default function TrainingPage() {
 
   return (
     <div className="animate-slide-in">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h1 className="slds-text-heading_large">Model Data Feed</h1>
-          <p style={{ fontSize: 13, color: '#706e6b', marginTop: 4 }}>
-            Run Bayesian MCMC inference via Google Meridian to estimate media effects
-          </p>
-        </div>
-        {!isRunning && !isComplete && (
-          <button className="slds-button slds-button_brand" onClick={startTraining}>
-            <Play size={16} /> Start Data Feed
-          </button>
-        )}
-        {isComplete && (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="slds-button slds-button_neutral" onClick={() => { setPhase(-1); setProgress(0); setLog([]); setDiagnostics(null); dispatch({ type: 'SET_TRAINING_STATUS', payload: 'idle' }); }}>
-              <RotateCcw size={14} /> Re-train
-            </button>
-            <button className="slds-button slds-button_brand" onClick={() => dispatch({ type: 'SET_STEP', payload: 'dashboards' })}>
-              View Dashboards <ArrowRight size={14} />
-            </button>
+      <div className="sf-page-header">
+        <div className="sf-page-header-left">
+          <div className="sf-page-icon" style={{ background: '#e5f5fe' }}>
+            <Zap size={20} color="#0176d3" />
           </div>
-        )}
+          <div>
+            <h1 className="sf-page-title">Model Data Feed</h1>
+          </div>
+        </div>
+        <div className="sf-page-actions">
+          {!isRunning && !isComplete && (
+            <button className="slds-button slds-button_brand" onClick={startTraining}>
+              <Play size={16} /> Start Data Feed
+            </button>
+          )}
+          {isComplete && (
+            <>
+              <button className="slds-button slds-button_neutral" onClick={() => { setPhase(-1); setProgress(0); setLog([]); setDiagnostics(null); dispatch({ type: 'SET_TRAINING_STATUS', payload: 'idle' }); }}>
+                <RotateCcw size={14} /> Re-train
+              </button>
+              <button className="slds-button slds-button_brand" onClick={() => dispatch({ type: 'SET_STEP', payload: 'dashboards' })}>
+                View Dashboards <ArrowRight size={14} />
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
         {/* Progress & Log */}
-        <div className="slds-card">
-          <h2 className="slds-text-heading_medium" style={{ marginBottom: 16 }}>Training Progress</h2>
+        <div id="training-progress" className="sf-section">
+          <div className="sf-section-header">
+            <div className="sf-section-header-left">
+              <h2 className="sf-section-title">Training Progress</h2>
+            </div>
+          </div>
+          <div className="sf-section-body">
 
           {/* Progress bar */}
           <div style={{ marginBottom: 20 }}>
@@ -155,11 +164,17 @@ export default function TrainingPage() {
             ))}
             {isRunning && <span className="animate-pulse" style={{ color: '#1b96ff' }}>|</span>}
           </div>
+          </div>
         </div>
 
         {/* Diagnostics */}
-        <div className="slds-card">
-          <h2 className="slds-text-heading_medium" style={{ marginBottom: 16 }}>Model Diagnostics</h2>
+        <div id="diagnostics" className="sf-section">
+          <div className="sf-section-header">
+            <div className="sf-section-header-left">
+              <h2 className="sf-section-title">Model Diagnostics</h2>
+            </div>
+          </div>
+          <div className="sf-section-body">
           {!diagnostics && !isRunning && (
             <div style={{ textAlign: 'center', padding: 40, color: '#706e6b' }}>
               <Zap size={48} style={{ opacity: 0.3, marginBottom: 12 }} />
@@ -201,6 +216,7 @@ export default function TrainingPage() {
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>

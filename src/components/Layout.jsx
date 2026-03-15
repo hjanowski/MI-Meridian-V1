@@ -1,19 +1,43 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { BarChart3, Database, Settings, LayoutDashboard, Home, ChevronRight, Menu, X, Zap, DollarSign } from 'lucide-react';
+import { Search, Bell, Settings as SettingsIcon, HelpCircle, Plus, Star, ChevronDown, Cloud, Menu, Grid3X3 } from 'lucide-react';
 
-const NAV_ITEMS = [
-  { key: 'home', label: 'Admin Console', icon: Home },
-  { key: 'pipeline', label: 'Data Ingestion', icon: Database },
-  { key: 'config', label: 'MI Configuration', icon: Settings },
-  { key: 'training', label: 'Model Data Feed', icon: Zap },
-  { key: 'budget', label: 'Budget Optimization', icon: DollarSign },
-  { key: 'dashboards', label: 'Dashboards', icon: LayoutDashboard },
+// Pages that get the Salesforce-style left sidebar
+const SF_PAGES = ['config', 'training', 'budget'];
+
+// Top navigation tabs (Salesforce-style)
+const TOP_TABS = [
+  { key: 'home', label: 'Home' },
+  { key: 'pipeline', label: 'Data Ingestion' },
+  { key: 'config', label: 'MI Configuration' },
+  { key: 'training', label: 'Model Data Feed' },
+  { key: 'budget', label: 'Budget Optimization' },
+  { key: 'dashboards', label: 'Dashboards' },
 ];
+
+// Left sidebar items per page
+const SIDEBAR_ITEMS = {
+  config: [
+    { key: 'data-sources', label: '3rd Party Data Sources' },
+    { key: 'first-party', label: '1st Party Data' },
+    { key: 'kpi-config', label: 'KPI Configuration' },
+    { key: 'external-factors', label: 'External Factors' },
+    { key: 'advanced', label: 'Advanced Settings' },
+  ],
+  training: [
+    { key: 'training-progress', label: 'Training Progress' },
+    { key: 'diagnostics', label: 'Model Diagnostics' },
+  ],
+  budget: [
+    { key: 'budget-settings', label: 'Budget Settings' },
+    { key: 'seasonality', label: 'Seasonality Index' },
+    { key: 'monthly-budget', label: 'Channel Budget by Month' },
+  ],
+};
 
 export default function Layout({ children }) {
   const { state, dispatch } = useApp();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const canNavigate = (key) => {
     if (key === 'home') return true;
@@ -25,90 +49,98 @@ export default function Layout({ children }) {
     return false;
   };
 
+  const hasSidebar = SF_PAGES.includes(state.currentStep);
+  const sidebarItems = SIDEBAR_ITEMS[state.currentStep] || [];
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Sidebar */}
-      <aside style={{
-        width: sidebarOpen ? 240 : 56, background: '#16325c', color: 'white',
-        transition: 'width 0.2s ease', display: 'flex', flexDirection: 'column',
-        flexShrink: 0, overflow: 'hidden',
-      }}>
-        {/* Logo area */}
-        <div style={{
-          padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.1)',
-          display: 'flex', alignItems: 'center', gap: 12, minHeight: 56,
-        }}>
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{
-            background: 'none', border: 'none', color: 'white', cursor: 'pointer',
-            padding: 4, display: 'flex',
-          }}>
-            {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-          {sidebarOpen && (
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.02em' }}>Marketing Intelligence</div>
-              <div style={{ fontSize: 10, opacity: 0.7, fontWeight: 500 }}>Meridian Integration</div>
-            </div>
-          )}
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      {/* ═══ SALESFORCE GLOBAL HEADER ═══ */}
+      <header className="sf-global-header">
+        <div className="sf-header-left">
+          {/* Salesforce Cloud Logo */}
+          <svg width="24" height="17" viewBox="0 0 24 17" style={{ flexShrink: 0 }}>
+            <path d="M10.1 1.4C11 .5 12.2 0 13.5 0c1.7 0 3.2.9 4 2.3.7-.3 1.5-.5 2.3-.5C22.7 1.8 25 4.2 25 7.1s-2.3 5.3-5.2 5.3c-.3 0-.7 0-1-.1-.7 1.4-2.1 2.4-3.8 2.4-0.6 0-1.2-.1-1.7-.4-.7 1.3-2.1 2.2-3.7 2.2-1.5 0-2.7-.7-3.5-1.9-.3.1-.7.1-1 .1C2.3 14.7 0 12.3 0 9.4 0 7.4 1.1 5.7 2.7 4.8 2.5 4.3 2.4 3.8 2.4 3.2 2.4 1.4 3.9 0 5.7 0 6.8 0 7.8.5 8.5 1.3l1.6.1z" fill="#00A1E0"/>
+          </svg>
+          <Grid3X3 size={18} color="white" style={{ opacity: 0.7, cursor: 'pointer' }} />
+          <span className="sf-app-name">Marketing Intelligence</span>
         </div>
 
-        {/* Nav Items */}
-        <nav style={{ flex: 1, padding: '8px 0' }}>
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const isActive = state.currentStep === item.key;
-            const enabled = canNavigate(item.key);
-            return (
-              <button
-                key={item.key}
-                onClick={() => enabled && dispatch({ type: 'SET_STEP', payload: item.key })}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                  padding: sidebarOpen ? '10px 16px' : '10px 18px',
-                  background: isActive ? 'rgba(255,255,255,0.15)' : 'transparent',
-                  border: 'none', color: enabled ? 'white' : 'rgba(255,255,255,0.35)',
-                  cursor: enabled ? 'pointer' : 'default', fontSize: 13, fontWeight: 500,
-                  textAlign: 'left', transition: 'background 0.15s',
-                  borderLeft: isActive ? '3px solid #1b96ff' : '3px solid transparent',
-                }}
-                onMouseEnter={(e) => { if (enabled && !isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
-                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
-              >
-                <Icon size={18} />
-                {sidebarOpen && <span>{item.label}</span>}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Footer */}
-        {sidebarOpen && (
-          <div style={{ padding: 16, borderTop: '1px solid rgba(255,255,255,0.1)', fontSize: 11, opacity: 0.5 }}>
-            Powered by Google Meridian v1.5
+        {/* Search bar */}
+        <div className="sf-search-wrapper">
+          <div className={`sf-search-bar ${searchFocused ? 'sf-search-bar--focused' : ''}`}>
+            <Search size={14} color="#706e6b" />
+            <input
+              type="text"
+              placeholder="Search..."
+              className="sf-search-input"
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+            />
           </div>
+        </div>
+
+        {/* Right icons */}
+        <div className="sf-header-right">
+          <Star size={18} />
+          <Plus size={18} />
+          <Cloud size={18} />
+          <HelpCircle size={18} />
+          <SettingsIcon size={18} />
+          <Bell size={18} />
+          <div className="sf-avatar">
+            <span style={{ fontSize: 11, fontWeight: 700 }}>MI</span>
+          </div>
+        </div>
+      </header>
+
+      {/* ═══ SALESFORCE TOP NAVIGATION TABS ═══ */}
+      <nav className="sf-nav-tabs">
+        {TOP_TABS.map((tab) => {
+          const isActive = state.currentStep === tab.key;
+          const enabled = canNavigate(tab.key);
+          return (
+            <button
+              key={tab.key}
+              className={`sf-nav-tab ${isActive ? 'sf-nav-tab--active' : ''} ${!enabled ? 'sf-nav-tab--disabled' : ''}`}
+              onClick={() => enabled && dispatch({ type: 'SET_STEP', payload: tab.key })}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* ═══ CONTENT AREA ═══ */}
+      <div style={{ flex: 1, display: 'flex', background: '#f3f3f3' }}>
+        {/* Left sidebar (Salesforce style - only on SF pages) */}
+        {hasSidebar && (
+          <aside className="sf-sidebar">
+            <div className="sf-sidebar-header">
+              {state.currentStep === 'config' ? 'MI Configuration' :
+               state.currentStep === 'training' ? 'Model Data Feed' :
+               'Budget Optimization'}
+            </div>
+            <nav className="sf-sidebar-nav">
+              {sidebarItems.map((item) => (
+                <a
+                  key={item.key}
+                  className="sf-sidebar-link"
+                  href={`#${item.key}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const el = document.getElementById(item.key);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                >
+                  {item.label}
+                </a>
+              ))}
+            </nav>
+          </aside>
         )}
-      </aside>
 
-      {/* Main content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {/* Header bar */}
-        <header style={{
-          height: 48, background: 'white', borderBottom: '1px solid #e5e5e5',
-          display: 'flex', alignItems: 'center', padding: '0 24px', gap: 8,
-        }}>
-          <span style={{ fontSize: 12, color: '#706e6b' }}>Marketing Intelligence</span>
-          <ChevronRight size={12} color="#706e6b" />
-          <span style={{ fontSize: 12, fontWeight: 600, color: '#181818' }}>
-            {NAV_ITEMS.find((n) => n.key === state.currentStep)?.label || 'Admin Console'}
-          </span>
-          <div style={{ flex: 1 }} />
-          {state.pipelineName && (
-            <span className="slds-badge slds-badge_info">{state.pipelineName}</span>
-          )}
-        </header>
-
-        {/* Page content */}
-        <main style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
+        {/* Main content */}
+        <main className="sf-main-content" style={{ padding: hasSidebar ? '24px 32px' : '24px 32px' }}>
           {children}
         </main>
       </div>

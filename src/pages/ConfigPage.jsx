@@ -83,23 +83,17 @@ function SectionIcon({ icon: Icon, color }) {
   );
 }
 
-function Section({ icon, color, title, badge, children }) {
+function Section({ id, icon, color, title, badge, children }) {
   return (
-    <div style={{
-      background: 'white', border: '1px solid #e5e5e5', borderRadius: 8,
-      marginBottom: 16, overflow: 'hidden',
-    }}>
-      <div style={{
-        padding: '16px 24px', borderBottom: '1px solid #e5e5e5',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div id={id} className="sf-section">
+      <div className="sf-section-header">
+        <div className="sf-section-header-left">
           <SectionIcon icon={icon} color={color} />
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: '#181818' }}>{title}</h2>
+          <h2 className="sf-section-title">{title}</h2>
         </div>
         {badge && <div>{badge}</div>}
       </div>
-      <div style={{ padding: '20px 24px' }}>
+      <div className="sf-section-body">
         {children}
       </div>
     </div>
@@ -172,18 +166,17 @@ export default function ConfigPage() {
   return (
     <div className="animate-slide-in">
       {/* Page header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 20,
-      }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#181818' }}>MI Configuration</h1>
-          <p style={{ fontSize: 13, color: '#706e6b', marginTop: 2 }}>
-            Configure data feeds, KPI, external factors, and budget optimization
-          </p>
+      <div className="sf-page-header">
+        <div className="sf-page-header-left">
+          <div className="sf-page-icon" style={{ background: '#e5f5fe' }}>
+            <Settings size={20} color="#0176d3" />
+          </div>
+          <div>
+            <h1 className="sf-page-title">MI Configuration</h1>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="slds-button slds-button_neutral" onClick={() => dispatch({ type: 'SET_STEP', payload: 'pipeline' })}>
+        <div className="sf-page-actions">
+          <button className="slds-button slds-button_outline-brand" onClick={() => dispatch({ type: 'SET_STEP', payload: 'pipeline' })}>
             Back to Data Ingestion
           </button>
           <button
@@ -197,11 +190,7 @@ export default function ConfigPage() {
       </div>
 
       {/* Summary metadata bar */}
-      <div style={{
-        background: 'white', border: '1px solid #e5e5e5', borderRadius: 8,
-        padding: '14px 24px', marginBottom: 20,
-        display: 'flex', alignItems: 'center', gap: 0, flexWrap: 'wrap',
-      }}>
+      <div className="sf-detail-row">
         {[
           { label: 'Name', value: state.pipelineName || 'MI Configuration' },
           { label: '3rd Party Feeds', value: has3rdPartySelection ? `${df.thirdPartyType === 'api' ? selectedApiPipelines.length : selectedTcPipelines.length} pipelines` : 'None' },
@@ -211,16 +200,10 @@ export default function ConfigPage() {
           { label: 'External Factors', value: `${enabledFactors}/${totalFactors} enabled` },
           { label: 'Budget', value: '$' + config.budgetOptimization.totalBudget.toLocaleString() },
           { label: 'Status', value: state.validationResults?.canProceed ? 'Ready' : 'Pending' },
-        ].map((item, i, arr) => (
-          <div key={i} style={{
-            display: 'flex', flexDirection: 'column', padding: '0 16px',
-            borderRight: i < arr.length - 1 ? '1px solid #e5e5e5' : 'none',
-          }}>
-            <span style={{ fontSize: 11, color: '#706e6b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-              {item.label}
-            </span>
-            <span style={{
-              fontSize: 13, fontWeight: 600, color: '#181818', marginTop: 2,
+        ].map((item, i) => (
+          <div key={i} className="sf-detail-item">
+            <span className="sf-detail-label">{item.label}</span>
+            <span className="sf-detail-value" style={{
               ...(item.label === 'Status' && item.value === 'Ready' ? { color: '#2e844a' } : {}),
               ...(item.label === '1st Party Data' && item.value === 'Connected' ? { color: '#2e844a' } : {}),
             }}>
@@ -233,7 +216,7 @@ export default function ConfigPage() {
       {/* ═══════════════════════════════════════════ */}
       {/* 1. DATA FEED SECTION                       */}
       {/* ═══════════════════════════════════════════ */}
-      <Section icon={Database} color="#0176d3" title="Data Feed"
+      <Section id="data-sources" icon={Database} color="#0176d3" title="Data Feed"
         badge={
           <span style={{
             fontSize: 12, fontWeight: 600,
@@ -477,7 +460,7 @@ export default function ConfigPage() {
         )}
 
         {/* ── 1st Party Data (Organic) ── */}
-        <div style={{ borderTop: '1px solid #e5e5e5', paddingTop: 20, marginTop: 4 }}>
+        <div id="first-party" style={{ borderTop: '1px solid #e5e5e5', paddingTop: 20, marginTop: 4 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>1st Party Data (Organic)</h3>
           <div className="slds-notify slds-notify_info" style={{ marginBottom: 12 }}>
             <Info size={16} />
@@ -538,7 +521,7 @@ export default function ConfigPage() {
       {/* ═══════════════════════════════════════════ */}
       {/* 2. KPI CONFIGURATION                       */}
       {/* ═══════════════════════════════════════════ */}
-      <Section icon={BarChart3} color="#0176d3" title="KPI Configuration">
+      <Section id="kpi-config" icon={BarChart3} color="#0176d3" title="KPI Configuration">
         <p style={{ fontSize: 13, color: '#706e6b', marginBottom: 16 }}>
           Select the KPI metric to model. Then configure the Data Cloud data source for this metric.
         </p>
@@ -721,7 +704,7 @@ export default function ConfigPage() {
       {/* ═══════════════════════════════════════════ */}
       {/* 3. EXTERNAL FACTORS & CONTROLS             */}
       {/* ═══════════════════════════════════════════ */}
-      <Section icon={CloudLightning} color="#fe9339" title="External Factors, Seasonality & Controls"
+      <Section id="external-factors" icon={CloudLightning} color="#fe9339" title="External Factors, Seasonality & Controls"
         badge={
           <span style={{
             fontSize: 12, fontWeight: 600, color: enabledFactors > 0 ? '#2e844a' : '#706e6b',
@@ -763,7 +746,7 @@ export default function ConfigPage() {
       {/* ═══════════════════════════════════════════ */}
       {/* 4. ADVANCED SETTINGS (bottom)              */}
       {/* ═══════════════════════════════════════════ */}
-      <Section icon={Sliders} color="#706e6b" title="Advanced Settings"
+      <Section id="advanced" icon={Sliders} color="#706e6b" title="Advanced Settings"
         badge={
           <span style={{
             fontSize: 12, fontWeight: 500, color: '#706e6b',
