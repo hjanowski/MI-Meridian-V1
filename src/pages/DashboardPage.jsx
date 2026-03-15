@@ -1,27 +1,19 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { generateOptimizationResults } from '../data/dataGenerator';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   LineChart, Line, AreaChart, Area, ScatterChart, Scatter, Cell,
   ComposedChart, ReferenceLine,
 } from 'recharts';
-import { Download, FileSpreadsheet, TrendingUp, DollarSign, Target, BarChart3, Layers, Activity, Info } from 'lucide-react';
+import { TrendingUp, DollarSign, BarChart3, Activity } from 'lucide-react';
 
 const COLORS = ['#0176d3', '#2e844a', '#fe9339', '#ba0517', '#9050e9', '#04844b', '#3296ed', '#fcc003', '#7b8b8e'];
-
-const SEASONALITY_INDEX = {
-  Jan: 0.78, Feb: 0.82, Mar: 0.95, Apr: 0.98, May: 1.05, Jun: 1.10,
-  Jul: 0.92, Aug: 0.88, Sep: 1.08, Oct: 1.31, Nov: 1.42, Dec: 1.47,
-};
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const TABS = [
   { key: 'overview', label: 'Overview', icon: BarChart3 },
   { key: 'roi', label: 'ROI Analysis', icon: DollarSign },
   { key: 'response', label: 'Response Curves', icon: TrendingUp },
   { key: 'media', label: 'Media Effects', icon: Activity },
-  { key: 'optimization', label: 'Budget Optimization', icon: Target },
 ];
 
 function formatCurrency(val) {
@@ -44,86 +36,9 @@ export default function DashboardPage() {
   const { state, dispatch } = useApp();
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedChannel, setSelectedChannel] = useState(0);
-  const [optResults, setOptResults] = useState(null);
 
   const data = state.dashboardData;
   if (!data) return <div>No dashboard data. Please run model training first.</div>;
-
-  const runOptimization = () => {
-    const budget = state.config.budgetOptimization.totalBudget;
-    const scenario = state.config.budgetOptimization.scenario;
-    const results = generateOptimizationResults(data, budget, scenario);
-    setOptResults(results);
-    dispatch({ type: 'SET_OPTIMIZATION_RESULTS', payload: results });
-  };
-
-  // Compute seasonality distribution for export
-  const getSeasonalityDistribution = () => {
-    if (!state.config.budgetOptimization.useSeasonalityIndex) return null;
-    const { budgetPeriod, totalBudget, beginDate } = state.config.budgetOptimization;
-    const startMonth = new Date(beginDate).getMonth();
-    const monthCount = budgetPeriod === 'quarterly' ? 3 : 12;
-    const months = [];
-    for (let i = 0; i < monthCount; i++) {
-      const idx = (startMonth + i) % 12;
-      months.push({ name: MONTH_NAMES[idx], index: SEASONALITY_INDEX[MONTH_NAMES[idx]] });
-    }
-    const sumIndices = months.reduce((s, m) => s + m.index, 0);
-    return months.map(m => ({
-      ...m,
-      budget: (totalBudget / sumIndices) * m.index,
-      pct: (m.index / sumIndices) * 100,
-    }));
-  };
-
-  const exportToSheets = () => {
-    if (!optResults) return;
-    const headers = ['Channel', 'Current Spend', 'Optimized Spend', 'Change %', 'Current Revenue', 'Optimized Revenue', 'ROI', 'mROI'];
-    const rows = optResults.channels.map((c) => [
-      c.channel, c.currentSpend, c.optimizedSpend, c.change + '%',
-      c.currentContribution, c.optimizedContribution, c.roi.toFixed(2), c.mROI.toFixed(2),
-    ]);
-    const summary = [
-      [], ['SUMMARY'],
-      ['Total Budget', formatCurrency(optResults.budget)],
-      ['Current ROI', optResults.currentROI],
-      ['Optimized ROI', optResults.optimizedROI],
-      ['Revenue Uplift', optResults.uplift + '%'],
-    ];
-
-    // Add seasonality timeline distribution if enabled
-    let seasonalitySection = [];
-    const budgetDist = getSeasonalityDistribution();
-    if (budgetDist) {
-      seasonalitySection = [
-        [], ['SEASONALITY INDEX BUDGET DISTRIBUTION'],
-        ['Month', 'Seasonality Index', 'Allocation %', 'Monthly Budget'],
-        ...budgetDist.map(m => [
-          m.name, m.index.toFixed(2), m.pct.toFixed(1) + '%', '$' + Math.round(m.budget).toLocaleString(),
-        ]),
-        [],
-        ['CHANNEL BUDGET BY MONTH (Optimized Spend x Seasonality)'],
-        ['Channel', ...budgetDist.map(m => m.name)],
-        ...optResults.channels.map((c) => [
-          c.channel,
-          ...budgetDist.map(m => {
-            const sumIndices = budgetDist.reduce((s, x) => s + x.index, 0);
-            const channelMonthly = (c.optimizedSpend / sumIndices) * m.index;
-            return '$' + Math.round(channelMonthly).toLocaleString();
-          }),
-        ]),
-      ];
-    }
-
-    const csv = [headers, ...rows, ...summary, ...seasonalitySection].map((r) => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'meridian_budget_plan.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   // Prepare data for spend vs contribution chart
   const spendVsContrib = data.channelROI.map((c, i) => ({
@@ -414,143 +329,6 @@ export default function DashboardPage() {
               </tbody>
             </table>
           </div>
-        </div>
-      )}
-
-      {/* ===== BUDGET OPTIMIZATION TAB ===== */}
-      {activeTab === 'optimization' && (
-        <div className="animate-fade-in">
-          {!optResults ? (
-            <div className="slds-card" style={{ textAlign: 'center', padding: 40 }}>
-              <Target size={48} color="#0176d3" style={{ marginBottom: 16 }} />
-              <h3 className="slds-text-heading_medium" style={{ marginBottom: 8 }}>Budget Optimization</h3>
-              <p style={{ fontSize: 13, color: '#706e6b', marginBottom: 8 }}>
-                Scenario: <strong>{state.config.budgetOptimization.scenario === 'fixed' ? 'Fixed Budget' : state.config.budgetOptimization.scenario === 'flexible_roi' ? 'Flexible Budget (Target ROI)' : 'Flexible Budget (Target mROI)'}</strong>
-              </p>
-              <p style={{ fontSize: 13, color: '#706e6b', marginBottom: 4 }}>
-                Budget: <strong>{formatCurrency(state.config.budgetOptimization.totalBudget)}</strong>
-              </p>
-              <p style={{ fontSize: 13, color: '#706e6b', marginBottom: 20 }}>
-                Constraints: {(state.config.budgetOptimization.spendConstraintLower * 100).toFixed(0)}% - {(state.config.budgetOptimization.spendConstraintUpper * 100).toFixed(0)}% of current spend per channel
-              </p>
-              <button className="slds-button slds-button_brand" onClick={runOptimization}>
-                <Target size={16} /> Run Budget Optimization
-              </button>
-            </div>
-          ) : (
-            <>
-              {/* Summary metrics */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 16 }}>
-                <MetricCard label="Total Budget" value={formatCurrency(optResults.budget)} />
-                <MetricCard label="Current ROI" value={optResults.currentROI + 'x'} />
-                <MetricCard label="Optimized ROI" value={optResults.optimizedROI + 'x'} color="#2e844a" />
-                <MetricCard label="Revenue Uplift" value={'+' + optResults.uplift + '%'} sub={formatCurrency(optResults.totalOptimizedContribution - optResults.totalCurrentContribution) + ' additional'} color="#2e844a" />
-              </div>
-
-              {/* Current vs Optimized bar chart */}
-              <div className="slds-card" style={{ marginBottom: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <h3 className="slds-text-heading_small">Current vs. Optimized Budget Allocation</h3>
-                  <button className="slds-button slds-button_success" onClick={exportToSheets}>
-                    <FileSpreadsheet size={14} /> Export to Google Sheets (CSV)
-                  </button>
-                </div>
-                <ResponsiveContainer width="100%" height={350}>
-                  <BarChart data={optResults.channels.map((c) => ({
-                    channel: c.channel.replace(/\s*\(.*\)/, '').substring(0, 14),
-                    current: c.currentSpend,
-                    optimized: c.optimizedSpend,
-                  }))} barGap={2}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-                    <XAxis dataKey="channel" tick={{ fontSize: 10 }} />
-                    <YAxis tickFormatter={(v) => formatCurrency(v)} tick={{ fontSize: 10 }} />
-                    <Tooltip formatter={(v) => formatCurrency(v)} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="current" fill="#c9c9c9" name="Current Allocation" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="optimized" fill="#0176d3" name="Optimized Allocation" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Optimization table */}
-              <div className="slds-card" style={{ marginBottom: 16 }}>
-                <h3 className="slds-text-heading_small" style={{ marginBottom: 12 }}>Budget Allocation Plan</h3>
-                <table className="slds-table">
-                  <thead>
-                    <tr>
-                      <th>Channel</th><th>Current Spend</th><th>Optimized Spend</th>
-                      <th>Change</th><th>Current Revenue</th><th>Optimized Revenue</th><th>ROI</th><th>mROI</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {optResults.channels.map((c, i) => {
-                      const changeNum = parseFloat(c.change);
-                      return (
-                        <tr key={i}>
-                          <td style={{ fontWeight: 600 }}>
-                            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: COLORS[i % COLORS.length], marginRight: 6 }} />
-                            {c.channel}
-                          </td>
-                          <td>{formatCurrency(c.currentSpend)}</td>
-                          <td style={{ fontWeight: 600 }}>{formatCurrency(c.optimizedSpend)}</td>
-                          <td style={{ color: changeNum >= 0 ? '#2e844a' : '#ea001e', fontWeight: 600 }}>
-                            {changeNum >= 0 ? '+' : ''}{c.change}%
-                          </td>
-                          <td>{formatCurrency(c.currentContribution)}</td>
-                          <td>{formatCurrency(c.optimizedContribution)}</td>
-                          <td>{c.roi.toFixed(2)}</td>
-                          <td>{c.mROI.toFixed(2)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr style={{ fontWeight: 700, background: '#f3f3f3' }}>
-                      <td>Total</td>
-                      <td>{formatCurrency(optResults.totalCurrentSpend)}</td>
-                      <td>{formatCurrency(optResults.totalOptimizedSpend)}</td>
-                      <td style={{ color: '#2e844a' }}>+{optResults.uplift}%</td>
-                      <td>{formatCurrency(optResults.totalCurrentContribution)}</td>
-                      <td>{formatCurrency(optResults.totalOptimizedContribution)}</td>
-                      <td>{optResults.currentROI}</td>
-                      <td>{optResults.optimizedROI}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-
-              {/* Response curves with optimal spend markers */}
-              <div className="slds-card">
-                <h3 className="slds-text-heading_small" style={{ marginBottom: 12 }}>Response Curves: Current vs. Optimal Spend</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-                  {data.responseCurves.slice(0, 6).map((curve, i) => {
-                    const opt = optResults.channels[i];
-                    const optSpend = opt ? Math.round(opt.optimizedSpend / data.kpiBreakdown.length) : 0;
-                    return (
-                      <div key={i} style={{ padding: 8 }}>
-                        <h4 style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{curve.channel}</h4>
-                        <ResponsiveContainer width="100%" height={160}>
-                          <LineChart data={curve.points}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-                            <XAxis dataKey="spend" tickFormatter={(v) => formatCurrency(v)} tick={{ fontSize: 9 }} />
-                            <YAxis tickFormatter={(v) => formatCurrency(v)} tick={{ fontSize: 9 }} />
-                            <Tooltip formatter={(v) => formatCurrency(v)} />
-                            <Line type="monotone" dataKey="response" stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} />
-                            <ReferenceLine x={curve.currentSpend} stroke="#fe9339" strokeDasharray="3 3" />
-                            <ReferenceLine x={optSpend} stroke="#2e844a" strokeDasharray="5 5" />
-                          </LineChart>
-                        </ResponsiveContainer>
-                        <div style={{ fontSize: 10, color: '#706e6b', display: 'flex', gap: 12 }}>
-                          <span><span style={{ color: '#fe9339' }}>---</span> Current</span>
-                          <span><span style={{ color: '#2e844a' }}>---</span> Optimal</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
-          )}
         </div>
       )}
 
