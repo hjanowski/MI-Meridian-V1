@@ -2,7 +2,10 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - claude/salesforce-mi-meridian-integration-0F9VW
+      - claude/fix-github-pages-deployment-YtWWf
   workflow_dispatch:
 
 permissions:
